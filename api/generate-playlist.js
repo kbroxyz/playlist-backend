@@ -1,107 +1,76 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const SpotifyWebApi = require("spotify-web-api-node");
 const { Configuration, OpenAIApi } = require("openai");
+const SpotifyWebApi = require("spotify-web-api-node");
 
-const app = express();
-app.use(bodyParser.json());
+// Init OpenAI
+const openai = new OpenAIApi(
+  new Configuration({ apiKey: process.env.OPENAI_API_KEY })
+);
 
+// Init Spotify
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET
 });
-
-const openai = new OpenAIApi(
-  new Configuration({
-    apiKey: process.env.OPENAI_API_KEY
-  })
-);
 
 async function getAccessToken() {
   const data = await spotifyApi.clientCredentialsGrant();
   spotifyApi.setAccessToken(data.body["access_token"]);
 }
 
-async function getStoryBeatsFromGPT(title) {
-  const prompt = `
-You are a music supervisor curating soundtracks that reflect emotional story arcs.
+async function searchSpotify({ genre, mood, tempo }) {
+  const query = `${genre} ${mood} ${tempo}`;
+  const result = await spotifyApi.searchTracks(query);
+  return result.body.tracks.items;
+}
 
-Break down the emotional progression of the story in "${title}" into 4–5 narrative beats. For each beat, return the following as a JSON array:
-[
-  {
-    "beat": "Intro",
-    "genre": "ambient",
-    "mood": "mysterious",
-    "tempo": "slow"
-  },
-  ...
-]
-Only return the JSON array.
-`;
+async function getStoryBeatsFromGPT(title) {
+  const prompt = `Break down the story of the film or TV series titled "${title}" into 3–5 emotional beats. For each beat, suggest a music genre, mood, and tempo. Return each as a numbered list like this:
+1. Genre: [genre], Mood: [mood], Tempo: [tempo]`;
 
   const response = await openai.createChatCompletion({
-    model: "gpt-4.1",
-    temperature: 0.7,
-    max_tokens: 400,
+    model: "gpt-4",
     messages: [
       {
         role: "system",
-        content:
-          "You are a music supervisor curating emotionally resonant playlists based on film story arcs."
+        content: "You are a creative assistant for music and film curation."
       },
       { role: "user", content: prompt }
     ]
   });
 
-  const raw = response.data.choices[0].message.content.trim();
+  return parseGPTResponse(response.data.choices[0].message.content);
+}
 
-  // Attempt to parse GPT's JSON output safely
-  try {
-    const jsonStart = raw.indexOf("[");
-    const jsonEnd = raw.lastIndexOf("]");
-    const jsonString = raw.slice(jsonStart, jsonEnd + 1);
-    return JSON.parse(jsonString);
-  } catch (e) {
-    console.error("Failed to parse GPT response:", raw);
-    throw new Error("LLM returned invalid format");
+function parseGPTResponse(content) {
+  const lines = content.split("\n").filter(line => line.includes("Genre"));
+  return lines.map(line => {
+    const genre = line.match(/Genre: ([^,]+)/i)?.[1]?.trim() || "ambient";
+    const mood = line.match(/Mood: ([^,]+)/i)?.[1]?.trim() || "mysterious";
+    const tempo = line.match(/Tempo: ([^,]+)/i)?.[1]?.trim() || "slow";
+    return { genre, mood, tempo };
+  });
+}
+
+module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
-}
 
-async function searchSpotifyTrack(beat) {
-  const query = `${beat.genre} ${beat.mood} ${beat.tempo}`;
-  const result = await spotifyApi.searchTracks(query, { limit: 5 });
-
-  return result.body.tracks.items.map((track) => ({
-    title: track.name,
-    artist: track.artists[0].name,
-    preview_url: track.preview_url,
-    spotify_url: track.external_urls.spotify,
-    id: track.id
-  }));
-}
-
-app.post("/generate-playlist", async (req, res) => {
   const { title } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ error: "Missing film/show title" });
-  }
-
   try {
-    await getAccessToken();
     const storyBeats = await getStoryBeatsFromGPT(title);
+    await getAccessToken();
 
     const playlist = [];
     for (const beat of storyBeats) {
-      const tracks = await searchSpotifyTrack(beat);
+      const tracks = await searchSpotify(beat);
       playlist.push(...tracks.slice(0, 3));
     }
 
-    res.json({ playlist });
+    res.status(200).json({ playlist });
   } catch (error) {
-    console.error("Error generating playlist:", error);
+    console.error("Playlist generation error:", error);
     res.status(500).json({ error: "Failed to generate playlist" });
   }
-});
-
-app.listen(3000, () => console.log("Server running on port 3000"));
+};
