@@ -6,6 +6,7 @@ export default function handler(req, res) {
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
+}
 
 export default async function handler(req, res) {
   const { title } = req.body;
@@ -21,5 +22,4 @@ export default async function handler(req, res) {
   ];
 
   res.status(200).json({ playlist: samplePlaylist });
-}
 }
