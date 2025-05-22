@@ -45,7 +45,14 @@ module.exports = async (req, res) => {
     });
 
     const gptData = await gptResponse.json();
-    const searchTerms = gptData.choices[0].message.content;
+
+if (!gptResponse.ok || !gptData.choices || !gptData.choices[0]?.message?.content) {
+  console.error('OpenAI API error:', gptData);
+  return res.status(500).json({ error: 'Failed to generate search terms from OpenAI.' });
+}
+
+const searchTerms = gptData.choices[0].message.content;
+
 
     // Step 2: Get Spotify access token
     const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
