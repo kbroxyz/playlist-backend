@@ -16,7 +16,7 @@ const getSpotifyAccessToken = async () => {
 
   const data = await response.json();
   return data.access_token;
-}
+};
 
 const searchSpotifyTracks = async (query) => {
   const token = await getSpotifyAccessToken();
@@ -28,7 +28,7 @@ const searchSpotifyTracks = async (query) => {
 
   const data = await response.json();
   return data.tracks?.items || [];
-}
+};
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -57,4 +57,4 @@ module.exports = async function handler(req, res) {
     console.error("Spotify API error:", err);
     res.status(500).json({ error: "Failed to fetch tracks from Spotify" });
   }
-}
+};
