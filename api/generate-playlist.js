@@ -1,5 +1,20 @@
 // /api/generate-playlist.js
 
+module.exports = async (req, res) => {
+  // Allow CORS for your frontend domain or * (for testing)
+  res.setHeader("Access-Control-Allow-Origin", "https://soundstory.webflow.io");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    // Handle preflight requests
+    return res.status(200).end();
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
 const OpenAI = require("openai");
 
 const openai = new OpenAI({
@@ -107,6 +122,7 @@ async function searchSpotifyTracks(genre, mood, tempo, accessToken) {
       Authorization: `Bearer ${accessToken}`,
     },
   });
+};
 
   const data = await response.json();
   return data.tracks?.items || [];
