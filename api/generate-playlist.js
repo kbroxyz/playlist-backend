@@ -1,127 +1,118 @@
-const { Configuration, OpenAIApi } = require("openai");
+const SpotifyWebApi = require("spotify-web-api-node");
+const OpenAI = require("openai");
 
-const spotifyClientId = process.env.SPOTIFY_CLIENT_ID;
-const spotifyClientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-const openaiApiKey = process.env.OPENAI_API_KEY;
+// Init OpenAI client (make sure OPENAI_API_KEY is in your env vars)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
+// Spotify client setup (make sure your env vars are set)
+const spotifyApi = new SpotifyWebApi({
+  clientId: process.env.SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+});
+
+// Helper to get Spotify access token
 async function getSpotifyAccessToken() {
-  const response = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      Authorization:
-        "Basic " +
-        Buffer.from(spotifyClientId + ":" + spotifyClientSecret).toString("base64"),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to get Spotify access token");
-  }
-
-  const data = await response.json();
-  return data.access_token;
+  const data = await spotifyApi.clientCredentialsGrant();
+  spotifyApi.setAccessToken(data.body["access_token"]);
 }
 
-async function searchSpotifyTracks(token, query, limit = 5) {
-  const url = new URL("https://api.spotify.com/v1/search");
-  url.searchParams.set("q", query);
-  url.searchParams.set("type", "track");
-  url.searchParams.set("limit", limit);
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Spotify search failed");
-  }
-
-  const data = await response.json();
-  return data.tracks.items;
-}
-
+// Use OpenAI GPT to parse story beats and generate music filters
 async function getStoryBeatsFromGPT(title) {
-  const configuration = new Configuration({
-    apiKey: openaiApiKey,
-  });
-  const openai = new OpenAIApi(configuration);
+  const prompt = `Break down the story of the film or TV series titled "${title}" into 3-5 emotional beats. For each beat, suggest a music genre, mood, and tempo in this exact format:
 
-  const prompt = `Break down the story of the film or TV series titled "${title}" into 3-5 emotional beats. For each beat, suggest a music genre, mood, and tempo in this format:
-Beat 1: Genre: ..., Mood: ..., Tempo: ...
-Beat 2: Genre: ..., Mood: ..., Tempo: ...
-...`;
+Beat 1:
+Genre: <genre>
+Mood: <mood>
+Tempo: <tempo>
 
-  const response = await openai.createChatCompletion({
-    model: "gpt-4.1",
+Beat 2:
+Genre: <genre>
+Mood: <mood>
+Tempo: <tempo>
+
+...and so on.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini", // or "gpt-4" if you have access
     messages: [
       { role: "system", content: "You are a creative assistant for music and film curation." },
       { role: "user", content: prompt },
     ],
-    temperature: 0.8,
   });
 
-  const content = response.data.choices[0].message.content;
+  const content = response.choices[0].message.content;
   return parseGPTResponse(content);
 }
 
+// Naive parser for GPT response into beat objects
 function parseGPTResponse(content) {
-  const lines = content
-    .split("\n")
-    .filter((line) => line.toLowerCase().includes("genre") && line.toLowerCase().includes("mood") && line.toLowerCase().includes("tempo"));
+  const lines = content.split("\n").filter(line => line.match(/Genre:|Mood:|Tempo:/i));
 
-  return lines.map((line) => {
-    const genreMatch = line.match(/Genre:\s*([^,]+)/i);
-    const moodMatch = line.match(/Mood:\s*([^,]+)/i);
-    const tempoMatch = line.match(/Tempo:\s*(.+)$/i);
+  const beats = [];
+  for (let i = 0; i < lines.length; i += 3) {
+    const genreMatch = lines[i].match(/Genre:\s*(.*)/i);
+    const moodMatch = lines[i + 1].match(/Mood:\s*(.*)/i);
+    const tempoMatch = lines[i + 2].match(/Tempo:\s*(.*)/i);
 
-    return {
+    beats.push({
       genre: genreMatch ? genreMatch[1].trim() : "ambient",
       mood: moodMatch ? moodMatch[1].trim() : "mysterious",
       tempo: tempoMatch ? tempoMatch[1].trim() : "slow",
-    };
-  });
+    });
+  }
+  return beats;
 }
 
-module.exports = async (req, res) => {
-  // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "https://soundstory.webflow.io");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+// Search Spotify tracks by combining genre, mood, tempo
+async function searchSpotify({ genre, mood, tempo }) {
+  // Construct a search query - can be improved for better filtering
+  const query = `${genre} ${mood} ${tempo}`;
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  const result = await spotifyApi.searchTracks(query, { limit: 5 });
+  return result.body.tracks.items;
+}
+
+// Main handler for Vercel serverless function
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  const { title } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: "Missing 'title' in request body" });
   }
 
   try {
-    const { title } = req.body;
-    if (!title) {
-      return res.status(400).json({ error: "Missing title in request body" });
-    }
+    // Get Spotify token
+    await getSpotifyAccessToken();
 
+    // Get story beats from GPT
     const storyBeats = await getStoryBeatsFromGPT(title);
-    const spotifyToken = await getSpotifyAccessToken();
 
+    // Fetch tracks for each beat
     const playlist = [];
     for (const beat of storyBeats) {
-      // Search Spotify for each beat using genre, mood, tempo
-      const query = `${beat.genre} ${beat.mood} ${beat.tempo}`;
-      const tracks = await searchSpotifyTracks(spotifyToken, query, 3);
-      playlist.push(...tracks);
+      const tracks = await searchSpotify(beat);
+      playlist.push(...tracks.slice(0, 4)); // limit per beat to 4 tracks
     }
 
-    return res.status(200).json({ playlist });
+    // Return assembled playlist (simplify the track objects)
+    const simplifiedPlaylist = playlist.map(track => ({
+      id: track.id,
+      name: track.name,
+      artists: track.artists.map(a => a.name).join(", "),
+      album: track.album.name,
+      preview_url: track.preview_url,
+      spotify_url: track.external_urls.spotify,
+      image: track.album.images[0]?.url || null,
+    }));
+
+    res.status(200).json({ playlist: simplifiedPlaylist });
   } catch (error) {
     console.error("Error generating playlist:", error);
-    return res.status(500).json({ error: "Failed to generate playlist" });
+    res.status(500).json({ error: "Failed to generate playlist" });
   }
 };
