@@ -1,0 +1,9 @@
+{
+  "name": "playlist-backend",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "dependencies": {
+    "openai": "^4.0.0",
+    "spotify-web-api-node": "^5.0.2"
+  }
+}
