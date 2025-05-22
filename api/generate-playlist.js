@@ -1,3 +1,12 @@
+export default function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*"); // or specify your domain
+  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
 export default async function handler(req, res) {
   const { title } = req.body;
 
@@ -12,4 +21,5 @@ export default async function handler(req, res) {
   ];
 
   res.status(200).json({ playlist: samplePlaylist });
+}
 }
