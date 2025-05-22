@@ -1,5 +1,5 @@
-// CommonJS format
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+// Enable native fetch in Node.js 18+ (used by Vercel)
+const { Buffer } = require('buffer');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Step 1: Use GPT-4 to generate playlist descriptors
+    // Step 1: Use OpenAI to get thematic keywords
     const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
     const searchTerms = gptData.choices[0].message.content;
 
     // Step 2: Get Spotify access token
-    const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
         'Authorization': 'Basic ' + Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString('base64'),
@@ -57,10 +57,10 @@ module.exports = async (req, res) => {
       body: 'grant_type=client_credentials'
     });
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
 
-    // Step 3: Use Spotify search for each term
+    // Step 3: Search Spotify for each term
     const terms = searchTerms.split(',').map(term => term.trim());
     const uniqueTracks = new Map();
 
