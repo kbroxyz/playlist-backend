@@ -42,52 +42,40 @@ async function getAccessToken() {
 
 // Enhanced GPT prompt to extract story beats with genre, mood, tempo, and valence & energy for filtering
 async function getStoryBeatsFromGPT(title) {
-  const prompt = `
-You are a creative assistant specializing in music curation for films and TV shows.
+  const prompt = `Break down the story of the film or TV series titled "${title}" into 3-5 emotional beats in JSON array format.
+Each beat should have these properties:
+- "beat" (short description)
+- "genre" (e.g., "drama", "action", "comedy")
+- "mood" (e.g., "dark", "uplifting", "tense")
+- "tempo" (bpm estimate)
 
-Break down the story of the film or TV series titled "${title}" into 3-5 emotional beats. For each beat, provide:
+Return ONLY the JSON array.`;
 
-- A brief description
-- Suggested music genre(s)
-- Mood (one or two words)
-- Tempo (slow, medium, fast)
-- Valence (positivity scale from 0.0 to 1.0)
-- Energy (intensity scale from 0.0 to 1.0)
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: "You are a creative assistant for music and film curation." },
+      { role: "user", content: prompt }
+    ],
+  });
 
-Return the results as a JSON array with this structure:
+  let content = response.choices[0].message.content.trim();
 
-[
-  {
-    "description": "...",
-    "genre": "...",
-    "mood": "...",
-    "tempo": "...",
-    "valence": number,
-    "energy": number
-  },
-  ...
-]
-`;
+  // ✅ Fix: Strip code block fencing if present
+  if (content.startsWith("```")) {
+    content = content.replace(/```(?:json)?/, "").replace(/```$/, "").trim();
+  }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a creative assistant for music and film curation." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const content = response.choices[0].message.content;
-    console.log("GPT response:", content);
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Error fetching story beats from GPT:", error);
-    throw error;
+    const beats = JSON.parse(content);
+    console.log("Parsed story beats from GPT:", beats);
+    return beats;
+  } catch (err) {
+    console.error("Failed to parse GPT JSON response:", content, err);
+    throw new Error("Failed to parse story beats from GPT");
   }
 }
+
 
 // Search Spotify tracks based on genre, mood, tempo, valence, energy
 async function searchSpotify({ genre, mood, tempo, valence, energy }) {
