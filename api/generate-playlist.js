@@ -1,221 +1,194 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const SpotifyWebApi = require("spotify-web-api-node");
 const OpenAI = require("openai");
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+
+const app = express();
+app.use(bodyParser.json());
+
+// Allow CORS from your frontend domain or all origins (adjust as needed)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*"); // Replace "*" with your domain in production
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
-const SpotifyWebApi = require("spotify-web-api-node");
-
+// Spotify API setup
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
 });
 
-// Helper: get Spotify access token
+// OpenAI API setup with new SDK usage
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Get Spotify access token using client credentials flow
 async function getAccessToken() {
-  const data = await spotifyApi.clientCredentialsGrant();
-  spotifyApi.setAccessToken(data.body["access_token"]);
-  console.log("Spotify access token set");
+  try {
+    const data = await spotifyApi.clientCredentialsGrant();
+    spotifyApi.setAccessToken(data.body["access_token"]);
+    console.log("Spotify access token retrieved");
+  } catch (error) {
+    console.error("Failed to get Spotify access token:", error);
+    throw error;
+  }
 }
 
-// Parse GPT output into structured beats
-function parseGPTResponse(content) {
-  const lines = content.split("\n").filter((line) =>
-    line.toLowerCase().includes("genre") &&
-    line.toLowerCase().includes("mood") &&
-    line.toLowerCase().includes("tempo")
-  );
-
-  const beats = lines.map((line) => {
-    const genreMatch = line.match(/Genre:\s*([^,]+)/i);
-    const moodMatch = line.match(/Mood:\s*([^,]+)/i);
-    const tempoMatch = line.match(/Tempo:\s*([^,]+)/i);
-
-    return {
-      genre: genreMatch ? genreMatch[1].trim() : "ambient",
-      mood: moodMatch ? moodMatch[1].trim() : "mysterious",
-      tempo: tempoMatch ? tempoMatch[1].trim() : "slow",
-    };
-  });
-
-  return beats;
-}
-
-// Get story beats from GPT with enhanced prompt
+// Enhanced GPT prompt to extract story beats with genre, mood, tempo, and valence & energy for filtering
 async function getStoryBeatsFromGPT(title) {
-  const prompt = `Break down the story of the film or TV series titled "${title}" into 3-5 emotional beats. For each beat, suggest a music genre, mood, and tempo. Provide the response in the following format, each beat on a new line:
-Genre: <genre>, Mood: <mood>, Tempo: <tempo>
-Example:
-Genre: ambient, Mood: tense, Tempo: slow`;
+  const prompt = `
+You are a creative assistant specializing in music curation for films and TV shows.
 
-  const response = await openai.createChatCompletion({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: "You are a creative assistant for music and film curation." },
-      { role: "user", content: prompt },
-    ],
-  });
+Break down the story of the film or TV series titled "${title}" into 3-5 emotional beats. For each beat, provide:
 
-  const content = response.data.choices[0].message.content;
-  console.log("GPT raw response:", content);
+- A brief description
+- Suggested music genre(s)
+- Mood (one or two words)
+- Tempo (slow, medium, fast)
+- Valence (positivity scale from 0.0 to 1.0)
+- Energy (intensity scale from 0.0 to 1.0)
 
-  const beats = parseGPTResponse(content);
-  console.log("Parsed beats from GPT:", beats);
+Return the results as a JSON array with this structure:
 
-  return beats;
+[
+  {
+    "description": "...",
+    "genre": "...",
+    "mood": "...",
+    "tempo": "...",
+    "valence": number,
+    "energy": number
+  },
+  ...
+]
+`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a creative assistant for music and film curation." },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+
+    const content = response.choices[0].message.content;
+    console.log("GPT response:", content);
+    return JSON.parse(content);
+  } catch (error) {
+    console.error("Error fetching story beats from GPT:", error);
+    throw error;
+  }
 }
 
-// Search Spotify tracks based on filters (genre, mood, tempo)
-async function searchSpotify({ genre, mood, tempo }) {
-  const query = `${genre} ${mood} ${tempo}`;
-  console.log("Spotify search query:", query);
+// Search Spotify tracks based on genre, mood, tempo, valence, energy
+async function searchSpotify({ genre, mood, tempo, valence, energy }) {
+  try {
+    // Basic query with genre and mood keywords
+    const query = `${genre} ${mood}`;
 
-  const result = await spotifyApi.searchTracks(query, { limit: 15 });
-  console.log(`Spotify returned ${result.body.tracks.items.length} tracks for query: ${query}`);
+    // Search tracks on Spotify
+    const searchResult = await spotifyApi.searchTracks(query, { limit: 20 });
+    const tracks = searchResult.body.tracks.items;
 
-  return result.body.tracks.items;
+    // Fetch audio features for filtering
+    const trackIds = tracks.map((t) => t.id);
+    const featuresResult = await spotifyApi.getAudioFeaturesForTracks(trackIds);
+    const audioFeatures = featuresResult.body.audio_features;
+
+    // Filter tracks by tempo, valence, and energy ranges around GPT suggestions
+    const tempoMap = { slow: [0, 90], medium: [90, 130], fast: [130, 300] };
+    const [tempoMin, tempoMax] = tempoMap[tempo.toLowerCase()] || [0, 300];
+
+    const filteredTracks = tracks.filter((track, idx) => {
+      const feat = audioFeatures[idx];
+      if (!feat) return false;
+
+      return (
+        feat.tempo >= tempoMin &&
+        feat.tempo <= tempoMax &&
+        feat.valence >= valence - 0.2 &&
+        feat.valence <= valence + 0.2 &&
+        feat.energy >= energy - 0.2 &&
+        feat.energy <= energy + 0.2
+      );
+    });
+
+    console.log(
+      `Spotify search for genre="${genre}", mood="${mood}", tempo="${tempo}" returned ${filteredTracks.length} tracks after filtering`
+    );
+
+    // Map filtered tracks into simpler object for frontend
+    return filteredTracks.map((track) => ({
+      id: track.id,
+      name: track.name,
+      artists: track.artists.map((a) => a.name).join(", "),
+      album: track.album.name,
+      image: track.album.images[0]?.url || "",
+      preview_url: track.preview_url,
+      spotify_url: track.external_urls.spotify,
+    }));
+  } catch (error) {
+    console.error("Error searching Spotify:", error);
+    throw error;
+  }
 }
 
-// Fetch audio features for a list of track IDs
-async function getAudioFeatures(trackIds) {
-  if (trackIds.length === 0) return [];
-
-  const featuresResponse = await spotifyApi.getAudioFeaturesForTracks(trackIds);
-  console.log(`Fetched audio features for ${featuresResponse.body.audio_features.length} tracks`);
-  return featuresResponse.body.audio_features;
-}
-
-// Calculate a simple match score between target beat and track audio features
-function calculateMatchScore(beat, features) {
-  if (!features) return 0;
-
-  let score = 0;
-
-  // Map moods to valence ranges (just an example)
-  const moodValenceMap = {
-    happy: [0.7, 1.0],
-    sad: [0.0, 0.3],
-    tense: [0.2, 0.5],
-    mysterious: [0.3, 0.6],
-    energetic: [0.6, 1.0],
-    calm: [0.0, 0.4],
-  };
-
-  const moodRange = moodValenceMap[beat.mood.toLowerCase()] || [0.3, 0.7];
-
-  // Check valence (positivity)
-  if (features.valence >= moodRange[0] && features.valence <= moodRange[1]) {
-    score += 1;
-  }
-
-  // Check tempo: convert beat.tempo string to numeric range
-  // Example mappings - you can refine this
-  const tempoMap = {
-    slow: [0, 80],
-    medium: [80, 120],
-    fast: [120, 1000],
-  };
-
-  const tempoRange = tempoMap[beat.tempo.toLowerCase()] || [80, 120];
-  if (features.tempo >= tempoRange[0] && features.tempo <= tempoRange[1]) {
-    score += 1;
-  }
-
-  // Check energy threshold for genre moods
-  const energyThresholds = {
-    ambient: 0.3,
-    pop: 0.6,
-    rock: 0.7,
-    electronic: 0.5,
-  };
-  const minEnergy = energyThresholds[beat.genre.toLowerCase()] || 0.4;
-
-  if (features.energy >= minEnergy) {
-    score += 1;
-  }
-
-  return score; // max 3
-}
-
-module.exports.handler = async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return res
-      .status(200)
-      .set({
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      })
-      .send("OK");
-  }
-
-  res.setHeader("Access-Control-Allow-Origin", "*");
-
+// Main playlist generation endpoint
+app.post("/api/generate-playlist", async (req, res) => {
   const { title } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ error: "Missing 'title' parameter" });
+  if (!title || title.trim() === "") {
+    return res.status(400).json({ error: "Missing or empty 'title' in request body" });
   }
 
   try {
-    const beats = await getStoryBeatsFromGPT(title);
+    // Get story beats metadata from GPT
+    const storyBeats = await getStoryBeatsFromGPT(title);
 
-    if (!beats || beats.length === 0) {
-      console.log("No beats parsed from GPT response");
-      return res.status(500).json({ error: "Failed to parse story beats from GPT" });
-    }
-
+    // Authenticate Spotify API
     await getAccessToken();
 
-    const playlist = [];
+    let playlist = [];
 
-    for (const beat of beats) {
+    // For each story beat, fetch relevant Spotify tracks
+    for (const beat of storyBeats) {
+      console.log("Processing beat:", beat.description);
+
       const tracks = await searchSpotify(beat);
-      const trackIds = tracks.map((t) => t.id).filter(Boolean);
 
-      if (trackIds.length === 0) {
-        console.log(`No tracks found for beat: ${JSON.stringify(beat)}`);
+      if (tracks.length === 0) {
+        console.log(`No tracks found for beat: ${beat.description}`);
         continue;
       }
 
-      const audioFeatures = await getAudioFeatures(trackIds);
-
-      // Map tracks to objects with features for scoring
-      const scoredTracks = tracks
-        .map((track, index) => {
-          return {
-            track,
-            features: audioFeatures[index],
-            score: calculateMatchScore(beat, audioFeatures[index]),
-          };
-        })
-        .filter((t) => t.features !== null) // Remove tracks without features
-        .sort((a, b) => b.score - a.score);
-
-      // Include top 3 scored tracks, fallback to top 3 if no scoring
-      const topTracks = scoredTracks.length > 0
-        ? scoredTracks.slice(0, 3).map((t) => t.track)
-        : tracks.slice(0, 3);
-
-      // Push formatted track info
-      topTracks.forEach((track) => {
-        playlist.push({
-          id: track.id,
-          name: track.name,
-          artists: track.artists.map((a) => a.name).join(", "),
-          album: track.album.name,
-          image: track.album.images[0]?.url || null,
-          spotify_url: track.external_urls.spotify,
-          preview_url: track.preview_url,
-        });
-      });
+      // Take top 3 tracks per beat for playlist
+      playlist.push(...tracks.slice(0, 3));
     }
 
-    console.log(`Final playlist length: ${playlist.length}`);
+    if (playlist.length === 0) {
+      return res.status(404).json({ error: "No tracks found matching the film's mood and storyline." });
+    }
 
-    return res.status(200).json({ playlist });
+    // Return the assembled playlist
+    res.json({ playlist });
   } catch (error) {
     console.error("Error generating playlist:", error);
-    return res.status(500).json({ error: "Failed to generate playlist" });
+    res.status(500).json({ error: "Failed to generate playlist." });
   }
-};
+});
+
+// Start server (if running standalone, for local dev)
+// Uncomment below if needed locally
+// app.listen(3000, () => console.log("Server running on port 3000"));
+
+module.exports = app; // For Vercel or serverless deployment
+
