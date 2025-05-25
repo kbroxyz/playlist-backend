@@ -1,117 +1,105 @@
-const fetch = require("node-fetch");
-const OpenAI = require("openai");
+const { Configuration, OpenAIApi } = require("openai");
 const SpotifyWebApi = require("spotify-web-api-node");
 
-// OpenAI configuration
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAIApi(
+  new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+);
 
-
-// Spotify API configuration
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
 });
 
-let spotifyTokenExpiresAt = 0;
-
-// Get or refresh Spotify access token
-async function ensureSpotifyAccessToken() {
-  if (Date.now() < spotifyTokenExpiresAt) return;
-
+async function authenticateSpotify() {
   const data = await spotifyApi.clientCredentialsGrant();
   spotifyApi.setAccessToken(data.body.access_token);
-  spotifyTokenExpiresAt = Date.now() + data.body.expires_in * 1000;
 }
 
-// Helper to get story beats
 async function getStoryBeatsFromGPT(title) {
-  try {
-    const prompt = `
-You are a screenwriter. Break down the narrative structure of the film or TV show titled "${title}" into 5 to 7 key story beats. Focus on emotional tone, character development, and atmosphere. Return the result strictly as a JSON array of objects, each with a 'beat' and a 'mood' property, no commentary or formatting.
+  const prompt = `
+You are a screenwriter helping to adapt a film or TV series into a soundtrack. Break the story down into 4-6 key emotional or narrative beats in JSON format. Each beat should have a 'label' (short description) and a 'mood' (emotional tone).
 
-Example:
+Only output valid JSON as an array of objects like:
 [
-  { "beat": "Opening scene in a desolate town introduces a lonely protagonist", "mood": "melancholy" },
-  { "beat": "Protagonist meets an enigmatic stranger", "mood": "curious, tense" },
+  { "label": "Opening Scene", "mood": "mysterious, calm" },
+  { "label": "Conflict Arises", "mood": "tense, dramatic" },
   ...
 ]
+
+Title: "${title}"
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-    });
+  const completion = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+  });
 
-    const raw = completion.data.choices[0].message.content.trim();
-    const json = raw.replace(/^```(?:json)?|```$/g, ""); // strip markdown if present
-    return JSON.parse(json);
-  } catch (err) {
-    console.error("Error fetching story beats from GPT:", err);
-    throw err;
+  if (
+    !completion ||
+    !completion.data ||
+    !completion.data.choices ||
+    !completion.data.choices[0]?.message?.content
+  ) {
+    throw new Error("OpenAI response is missing expected structure.");
   }
+
+  console.log("GPT response:", completion.data.choices[0].message.content);
+
+  return JSON.parse(completion.data.choices[0].message.content);
 }
 
-// Search Spotify for tracks based on beat/mood
-async function searchTracksForBeat(beatObj) {
-  const query = `${beatObj.mood} ${beatObj.beat}`;
-  try {
-    const response = await spotifyApi.searchTracks(query, { limit: 10 });
-    const tracks = response.body.tracks.items;
+async function searchTracksForBeat(beat) {
+  const query = `${beat.label} ${beat.mood}`;
+  const result = await spotifyApi.searchTracks(query, { limit: 10 });
 
-    return tracks.map((track) => ({
-      id: track.id,
-      name: track.name,
-      artist: track.artists.map((a) => a.name).join(", "),
-      album: track.album.name,
-      image: track.album.images[0]?.url || "",
-      preview_url: track.preview_url,
-      spotify_url: track.external_urls.spotify,
-    }));
-  } catch (err) {
-    console.error("Error searching Spotify:", err);
-    return [];
+  if (!result.body.tracks || !result.body.tracks.items.length) {
+    console.warn("No tracks found for:", query);
+    return null;
   }
+
+  const selectedTrack = result.body.tracks.items.find(
+    (track) => !!track.preview_url || !!track.external_urls?.spotify
+  );
+
+  if (!selectedTrack) {
+    console.warn("No valid preview or Spotify URL for:", query);
+    return null;
+  }
+
+  return {
+    id: selectedTrack.id,
+    name: selectedTrack.name,
+    artists: selectedTrack.artists.map((a) => a.name).join(", "),
+    album: selectedTrack.album.name,
+    image: selectedTrack.album.images?.[0]?.url,
+    preview_url: selectedTrack.preview_url,
+    spotify_url: selectedTrack.external_urls.spotify,
+  };
 }
 
-// API handler
 module.exports = async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { title } = req.body;
-
-  if (!title) {
-    return res.status(400).json({ error: "Missing film title" });
-  }
-
   try {
-    await ensureSpotifyAccessToken();
+    const { title } = req.body;
 
-    const beats = await getStoryBeatsFromGPT(title);
-    console.log("Story Beats:", beats);
+    if (!title) {
+      return res.status(400).json({ error: "Missing title in request body" });
+    }
 
-    const trackResults = await Promise.all(beats.map(searchTracksForBeat));
+    await authenticateSpotify();
 
-    // Flatten and dedupe
-    const allTracks = trackResults.flat().filter((t) => !!t.spotify_url);
-    const uniqueTracks = Array.from(
-      new Map(allTracks.map((t) => [t.spotify_url, t])).values()
-    );
+    const storyBeats = await getStoryBeatsFromGPT(title);
 
-    const playlist = uniqueTracks.slice(0, 20); // Limit to 20 tracks
-    res.status(200).json({ playlist });
+    console.log("Story beats:", storyBeats);
+
+    const trackPromises = storyBeats.map((beat) => searchTracksForBeat(beat));
+    const tracks = (await Promise.all(trackPromises)).filter(Boolean);
+
+    console.log("Selected tracks:", tracks);
+
+    res.status(200).json({ tracks });
   } catch (err) {
     console.error("Error generating playlist:", err);
     res.status(500).json({ error: "Failed to generate playlist" });
