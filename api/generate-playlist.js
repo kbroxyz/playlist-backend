@@ -39,7 +39,7 @@ Example:
 ]
 `;
 
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4.1",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
