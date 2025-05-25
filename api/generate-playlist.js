@@ -1,13 +1,12 @@
 const fetch = require("node-fetch");
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require("openai");
 const SpotifyWebApi = require("spotify-web-api-node");
 
 // OpenAI configuration
-const openai = new OpenAIApi(
-  new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-  })
-);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 
 // Spotify API configuration
 const spotifyApi = new SpotifyWebApi({
