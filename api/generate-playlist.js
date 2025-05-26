@@ -65,7 +65,7 @@ function parseGPTResponse(content) {
 }
 
 async function searchSpotify({ genre, mood }) {
-  const query = `${genre} ${mood} soundtrack`;
+  const query = `${genre} ${mood}`;
   console.log("Searching Spotify with query:", query);
 
   const result = await spotifyApi.searchTracks(query, { limit: 10 });
