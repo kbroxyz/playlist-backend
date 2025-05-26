@@ -42,6 +42,8 @@ Tempo: <tempo>`;
       { role: "user", content: prompt },
     ],
   });
+  
+  console.log("🧠 GPT response:", response.choices?.[0]?.message?.content);
 
   return parseGPTResponse(response.choices[0].message.content);
 }
@@ -55,27 +57,25 @@ function parseGPTResponse(content) {
     const mood = lines[i + 1]?.split("Mood:")[1]?.trim() || "mysterious";
     const tempo = lines[i + 2]?.split("Tempo:")[1]?.trim() || "slow";
     beats.push({ genre, mood, tempo });
+
+    console.log("🎬 Parsed story beats:", beats);
   }
 
   return beats;
 }
 
-async function searchSpotify({ genre, mood, tempo }) {
-  const query = `${genre} ${mood} ${tempo} soundtrack`;
+async function searchSpotify({ genre, mood }) {
+  const query = `${genre} ${mood} soundtrack`;
+  console.log("Searching Spotify with query:", query);
 
   const result = await spotifyApi.searchTracks(query, { limit: 10 });
   const tracks = result.body.tracks.items;
 
-  // Filter: Remove tracks without preview, compilations, and odd durations
-  const filtered = tracks
-    .filter(track =>
-      track.preview_url &&
-      track.album.album_type !== "compilation" &&
-      track.duration_ms >= 60000 && // >= 1 min
-      track.duration_ms <= 420000   // <= 7 min
-    )
-    .sort((a, b) => b.popularity - a.popularity);
+  console.log("Found tracks:", tracks.map(t => t.name));
 
+  const filtered = tracks.filter(track => track.preview_url);
+  console.log("Filtered tracks with preview:", filtered.length);
+  
   return filtered;
 }
 
@@ -111,6 +111,8 @@ module.exports = async function handler(req, res) {
       image: track.album.images[0]?.url || null,
     }));
 
+    console.log("Final playlist:", simplifiedPlaylist);
+    
     res.status(200).json({ playlist: simplifiedPlaylist });
   } catch (error) {
     console.error("Error generating playlist:", error);
