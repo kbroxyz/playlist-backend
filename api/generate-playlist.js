@@ -68,8 +68,12 @@ async function searchSpotify({ genre, mood }) {
   const tracks = result.body.tracks.items;
 
   console.log("Found tracks:", tracks.map(t => t.name));
+  
+  let filtered = tracks.filter(track => track.preview_url);
+    if (filtered.length === 0) {
+    filtered = tracks; // fallback
+    }
 
-  const filtered = tracks.filter(track => track.preview_url);
   console.log("Filtered tracks with preview:", filtered.length);
   
   return filtered;
