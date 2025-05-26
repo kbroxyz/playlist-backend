@@ -18,7 +18,12 @@ async function getSpotifyAccessToken() {
 }
 
 async function getStoryBeatsFromGPT(title) {
-  const prompt = `Break down the story of the film or TV series titled "${title}" into 3–5 emotional beats. For each beat, suggest a music genre, mood, and tempo in this exact format:
+  const prompt = `Break down the narrative arc of "${title}" into 3–5 distinct emotional beats. For each beat, return only the most fitting:
+- Music genre (e.g., indie rock, synthwave, orchestral)
+- Mood (e.g., hopeful, tense, melancholic)
+- Tempo (e.g., slow, medium, fast)
+
+Use this exact format:
 
 Beat 1:
 Genre: <genre>
@@ -56,31 +61,35 @@ function parseGPTResponse(content) {
 }
 
 async function searchSpotify({ genre, mood, tempo }) {
-  const query = `${genre} ${mood} ${tempo}`;
-  const result = await spotifyApi.searchTracks(query, { limit: 5 });
-  return result.body.tracks.items;
+  const query = `${genre} ${mood} ${tempo} soundtrack`;
+
+  const result = await spotifyApi.searchTracks(query, { limit: 10 });
+  const tracks = result.body.tracks.items;
+
+  // Filter: Remove tracks without preview, compilations, and odd durations
+  const filtered = tracks
+    .filter(track =>
+      track.preview_url &&
+      track.album.album_type !== "compilation" &&
+      track.duration_ms >= 60000 && // >= 1 min
+      track.duration_ms <= 420000   // <= 7 min
+    )
+    .sort((a, b) => b.popularity - a.popularity);
+
+  return filtered;
 }
 
 // Vercel Serverless Function Entry Point
 module.exports = async function handler(req, res) {
-  // --- CORS HEADERS ---
-  res.setHeader("Access-Control-Allow-Origin", "*"); // or use your Webflow domain instead of "*"
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { title } = req.body;
-  if (!title) {
-    return res.status(400).json({ error: "Missing 'title' in request body" });
-  }
+  if (!title) return res.status(400).json({ error: "Missing 'title' in request body" });
 
   try {
     await getSpotifyAccessToken();
@@ -89,7 +98,7 @@ module.exports = async function handler(req, res) {
     const playlist = [];
     for (const beat of storyBeats) {
       const tracks = await searchSpotify(beat);
-      playlist.push(...tracks.slice(0, 4));
+      playlist.push(...tracks.slice(0, 4)); // take top 4
     }
 
     const simplifiedPlaylist = playlist.map(track => ({
