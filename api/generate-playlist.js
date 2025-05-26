@@ -69,8 +69,8 @@ async function searchSpotify({ genre, mood }) {
 
   console.log("Found tracks:", tracks.map(t => t.name));
 
-  // const filtered = tracks.filter(track => track.preview_url);
-  // console.log("Filtered tracks with preview:", filtered.length);
+  const filtered = tracks.filter(track => track.preview_url);
+  console.log("Filtered tracks with preview:", filtered.length);
   
   return filtered;
 }
