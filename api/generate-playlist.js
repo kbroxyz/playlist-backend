@@ -21,19 +21,16 @@ async function getStoryBeatsFromGPT(title) {
   const prompt = `Break down the narrative arc of "${title}" into 3–5 distinct emotional beats. For each beat, return only the most fitting:
 - Music genre (e.g., indie rock, synthwave, orchestral)
 - Mood (e.g., hopeful, tense, melancholic)
-- Tempo (e.g., slow, medium, fast)
 
 Use this exact format:
 
 Beat 1:
 Genre: <genre>
 Mood: <mood>
-Tempo: <tempo>
 
 Beat 2:
 Genre: <genre>
-Mood: <mood>
-Tempo: <tempo>`;
+Mood: <mood>`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -55,8 +52,7 @@ function parseGPTResponse(content) {
   for (let i = 0; i < lines.length; i += 3) {
     const genre = lines[i]?.split("Genre:")[1]?.trim() || "ambient";
     const mood = lines[i + 1]?.split("Mood:")[1]?.trim() || "mysterious";
-    const tempo = lines[i + 2]?.split("Tempo:")[1]?.trim() || "slow";
-    beats.push({ genre, mood, tempo });
+    beats.push({ genre, mood });
 
     console.log("🎬 Parsed story beats:", beats);
   }
