@@ -24,35 +24,35 @@ async function getSpotifyAccessToken() {
 }
 
 async function getStoryBeatsFromGPT(title) {
-  const prompt = `Analyze the film/TV series "${title}" and break down its narrative arc into 4-5 distinct emotional beats that capture the story's progression. For each beat, provide:
+  const prompt = `Analyze the film/TV series "${title}" and break down its narrative arc into 4-5 distinct emotional beats. For each beat, provide:
 
-- Specific musical characteristics (e.g., "minor key strings with building percussion", "ambient synths with deep bass", "solo piano with reverb", "driving electronic beats with distorted guitars")
-- Energy level (low, medium, high, intense)
-- Tempo feel (slow, moderate, fast, variable)
-- Sonic qualities (dark, bright, warm, cold, spacious, intimate, aggressive, gentle)
+- Mood: One primary emotional descriptor (mysterious, hopeful, intense, melancholic, triumphant, eerie, romantic, etc.)
+- Energy: low, medium, high, or intense
+- Vibe: One general musical style preference (cinematic, electronic, acoustic, orchestral, ambient, rock, etc.)
+- Keywords: 2-3 searchable terms that capture the feeling
 
-Focus on the SOUND and FEEL rather than genre labels. Use this exact format:
+Focus on emotions and searchable terms rather than technical musical details. Use this exact format:
 
 Beat 1:
-Sound: <specific musical characteristics>
+Mood: <emotional descriptor>
 Energy: <energy level>
-Tempo: <tempo feel>
-Sonic: <sonic qualities>
+Vibe: <musical style>
+Keywords: <searchable terms>
 
 Beat 2:
-Sound: <specific musical characteristics>
+Mood: <emotional descriptor>
 Energy: <energy level>
-Tempo: <tempo feel>
-Sonic: <sonic qualities>`;
+Vibe: <musical style>
+Keywords: <searchable terms>`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "You are an expert music analyst who focuses on sonic characteristics, instrumentation, and musical elements rather than genre labels or names. Describe music by its actual sound qualities." },
+        { role: "system", content: "You are a music curator who understands how to find music that matches emotional moments. Focus on moods, feelings, and searchable terms rather than technical musical details." },
         { role: "user", content: prompt },
       ],
-      temperature: 0.5,
+      temperature: 0.7,
     });
     
     console.log("🧠 GPT response:", response.choices?.[0]?.message?.content);
@@ -60,10 +60,10 @@ Sonic: <sonic qualities>`;
   } catch (error) {
     console.error("❌ OpenAI API error:", error);
     return [
-      { sound: "orchestral strings minor key", energy: "medium", tempo: "slow", sonic: "dark mysterious" },
-      { sound: "electronic beats synthesizers", energy: "high", tempo: "fast", sonic: "intense driving" },
-      { sound: "ambient pads reverb", energy: "low", tempo: "slow", sonic: "spacious ethereal" },
-      { sound: "piano strings emotional", energy: "medium", tempo: "moderate", sonic: "warm melancholic" }
+      { mood: "mysterious", energy: "medium", vibe: "cinematic", keywords: "dark atmospheric" },
+      { mood: "intense", energy: "high", vibe: "electronic", keywords: "driving powerful" },
+      { mood: "melancholic", energy: "low", vibe: "acoustic", keywords: "sad beautiful" },
+      { mood: "triumphant", energy: "high", vibe: "orchestral", keywords: "epic victory" }
     ];
   }
 }
@@ -74,98 +74,85 @@ function parseGPTResponse(content) {
 
   for (const section of beatSections) {
     const lines = section.split('\n').filter(line => line.trim());
-    let sound = "orchestral strings";
+    let mood = "cinematic";
     let energy = "medium";
-    let tempo = "moderate";
-    let sonic = "cinematic";
+    let vibe = "cinematic";
+    let keywords = "atmospheric";
 
     for (const line of lines) {
-      if (line.match(/Sound:/i)) {
-        sound = line.split(/Sound:/i)[1]?.trim() || "orchestral strings";
+      if (line.match(/Mood:/i)) {
+        mood = line.split(/Mood:/i)[1]?.trim() || "cinematic";
       } else if (line.match(/Energy:/i)) {
         energy = line.split(/Energy:/i)[1]?.trim() || "medium";
-      } else if (line.match(/Tempo:/i)) {
-        tempo = line.split(/Tempo:/i)[1]?.trim() || "moderate";
-      } else if (line.match(/Sonic:/i)) {
-        sonic = line.split(/Sonic:/i)[1]?.trim() || "cinematic";
+      } else if (line.match(/Vibe:/i)) {
+        vibe = line.split(/Vibe:/i)[1]?.trim() || "cinematic";
+      } else if (line.match(/Keywords:/i)) {
+        keywords = line.split(/Keywords:/i)[1]?.trim() || "atmospheric";
       }
     }
 
-    beats.push({ sound, energy, tempo, sonic });
+    beats.push({ mood, energy, vibe, keywords });
   }
 
   console.log("🎬 Parsed story beats:", beats);
-  return beats.length > 0 ? beats : [{ sound: "orchestral strings", energy: "medium", tempo: "moderate", sonic: "cinematic" }];
+  return beats.length > 0 ? beats : [{ mood: "cinematic", energy: "medium", vibe: "cinematic", keywords: "atmospheric" }];
 }
 
-async function searchSpotify({ sound, energy, tempo, sonic }, usedTrackIds = new Set()) {
-  // Create search queries based purely on musical characteristics
-  const soundKeywords = sound.split(' ').slice(0, 3).join(' '); // First 3 words of sound description
-  const energyMap = {
-    'low': 'ambient calm peaceful',
-    'medium': 'moderate balanced',
-    'high': 'energetic driving powerful',
-    'intense': 'aggressive intense heavy'
-  };
-  const tempoMap = {
-    'slow': 'slow ballad downtempo',
-    'moderate': 'mid-tempo steady',
-    'fast': 'fast upbeat rapid',
-    'variable': 'dynamic changing'
-  };
-  
-  const energyWords = energyMap[energy.toLowerCase()] || 'cinematic';
-  const tempoWords = tempoMap[tempo.toLowerCase()] || 'moderate';
-  
+async function searchSpotify({ mood, energy, vibe, keywords }, usedTrackIds = new Set()) {
+  // Create search strategies that work well with Spotify's algorithm
   const queries = [
-    // Pure musical characteristics
-    `${soundKeywords} ${sonic}`,
-    `${soundKeywords} ${energyWords}`,
-    `${sonic} ${tempoWords}`,
-    `${soundKeywords} instrumental`,
-    `${energyWords} ${sonic}`,
-    `${soundKeywords} ${tempoWords}`,
-    // Broader musical terms
-    `instrumental ${sonic} ${energyWords}`,
-    `${sonic} music ${tempoWords}`,
-    `${soundKeywords} cinematic`,
-    `${energyWords} instrumental`
+    // Genre + mood combinations
+    `${vibe} ${mood}`,
+    `${mood} music`,
+    `${keywords} ${vibe}`,
+    
+    // Energy-based searches
+    energy === 'low' ? `ambient ${mood}` : energy === 'high' ? `energetic ${mood}` : `${mood} soundtrack`,
+    
+    // Broader genre searches
+    `${vibe} instrumental`,
+    `${mood} ${keywords}`,
+    
+    // Fallback searches
+    `cinematic ${mood}`,
+    `${keywords} music`,
+    `${vibe} ${energy}`,
+    `atmospheric ${mood}`
   ];
 
+  // Try each query until we find good results
   for (const query of queries) {
     try {
       console.log("🔍 Searching Spotify with query:", query);
       
       const result = await spotifyApi.searchTracks(query, { 
-        limit: 40, // Higher limit for more variety
+        limit: 50,
         market: 'US'
       });
       
       const tracks = result.body.tracks.items;
       console.log(`Found ${tracks.length} tracks for query: ${query}`);
       
-      // Filter for valid tracks and remove duplicates
-      const validTracks = tracks.filter(track => 
-        track.id && 
-        track.external_urls && 
-        track.external_urls.spotify &&
-        track.name &&
-        track.artists &&
-        track.artists.length > 0 &&
-        !usedTrackIds.has(track.id) // Avoid duplicates
-      );
+      // Filter and score tracks
+      const validTracks = tracks
+        .filter(track => 
+          track.id && 
+          track.external_urls?.spotify &&
+          track.name &&
+          track.artists?.length > 0 &&
+          !usedTrackIds.has(track.id) &&
+          track.preview_url // Prefer tracks with previews
+        )
+        .map(track => ({
+          ...track,
+          relevanceScore: calculateRelevanceScore(track, { mood, energy, vibe, keywords })
+        }))
+        .sort((a, b) => b.relevanceScore - a.relevanceScore);
       
-      // Sort by musical characteristics (deprioritize official soundtracks)
-      const sortedTracks = validTracks.sort((a, b) => {
-        const aScore = getMusicalRelevanceScore(a, { sound, energy, tempo, sonic });
-        const bScore = getMusicalRelevanceScore(b, { sound, energy, tempo, sonic });
-        return bScore - aScore;
-      });
+      console.log(`Valid tracks found: ${validTracks.length}`);
       
-      console.log(`Valid tracks for embedding: ${sortedTracks.length}`);
-      
-      if (sortedTracks.length >= 2) {
-        return sortedTracks;
+      if (validTracks.length >= 3) {
+        return validTracks;
       }
     } catch (error) {
       console.error(`❌ Error searching with query "${query}":`, error);
@@ -173,55 +160,59 @@ async function searchSpotify({ sound, energy, tempo, sonic }, usedTrackIds = new
     }
   }
 
-  console.log("⚠️ No valid tracks found for any query");
+  console.log("⚠️ No sufficient tracks found for any query");
   return [];
 }
 
-// Score tracks based on musical characteristics only, deprioritize soundtracks
-function getMusicalRelevanceScore(track, { sound, energy, tempo, sonic }) {
+function calculateRelevanceScore(track, { mood, energy, vibe, keywords }) {
   const trackName = track.name.toLowerCase();
   const albumName = track.album.name.toLowerCase();
   const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
+  const allText = `${trackName} ${albumName} ${artistNames}`;
   
   let score = 0;
   
-  // DEPRIORITIZE official soundtracks
-  const soundtrackIndicators = ['soundtrack', 'ost', 'original score', 'motion picture', 'theme from'];
-  const isSoundtrack = soundtrackIndicators.some(indicator => 
-    trackName.includes(indicator) || albumName.includes(indicator)
-  );
-  if (isSoundtrack) score -= 10; // Heavy penalty for soundtracks
+  // Base popularity score (but not dominant)
+  score += Math.min(track.popularity * 0.1, 10);
   
-  // Prioritize instrumental music (better for cinematic feel)
-  const instrumentalIndicators = ['instrumental', 'piano', 'orchestra', 'symphony', 'quartet', 'ensemble', 'solo'];
-  const isInstrumental = instrumentalIndicators.some(indicator => 
-    trackName.includes(indicator) || albumName.includes(indicator) || artistNames.includes(indicator)
-  );
-  if (isInstrumental) score += 5;
-  
-  // Boost tracks that are likely to match the sonic qualities
-  const genreBoosts = {
-    'ambient': ['ambient', 'atmospheric', 'drone', 'meditation'],
-    'electronic': ['electronic', 'synth', 'digital', 'electro'],
-    'orchestral': ['orchestra', 'symphony', 'philharmonic', 'classical'],
-    'piano': ['piano', 'keyboard', 'keys'],
-    'strings': ['string', 'violin', 'cello', 'chamber'],
-    'dark': ['dark', 'noir', 'shadow', 'night'],
-    'bright': ['bright', 'light', 'morning', 'sun'],
-    'intense': ['intense', 'dramatic', 'power', 'force']
-  };
-  
-  const allText = `${trackName} ${albumName} ${artistNames}`;
-  Object.entries(genreBoosts).forEach(([key, indicators]) => {
-    if (sound.includes(key) || sonic.includes(key)) {
-      indicators.forEach(indicator => {
-        if (allText.includes(indicator)) score += 2;
-      });
-    }
+  // Keyword matching
+  const keywordList = keywords.toLowerCase().split(' ');
+  keywordList.forEach(keyword => {
+    if (allText.includes(keyword)) score += 3;
   });
   
-  // Slight boost for popularity (but not primary factor)
-  score += track.popularity * 0.1;
+  // Mood matching
+  if (allText.includes(mood.toLowerCase())) score += 5;
+  
+  // Vibe/genre matching
+  if (allText.includes(vibe.toLowerCase())) score += 4;
+  
+  // Energy level adjustments
+  const energyKeywords = {
+    low: ['ambient', 'calm', 'peaceful', 'quiet', 'soft', 'gentle'],
+    medium: ['moderate', 'balanced', 'steady'],
+    high: ['energetic', 'powerful', 'driving', 'intense', 'fast'],
+    intense: ['aggressive', 'heavy', 'extreme', 'brutal', 'fierce']
+  };
+  
+  if (energyKeywords[energy]) {
+    energyKeywords[energy].forEach(keyword => {
+      if (allText.includes(keyword)) score += 2;
+    });
+  }
+  
+  // Prefer instrumental/cinematic content
+  const cinematicBoost = ['instrumental', 'cinematic', 'soundtrack', 'score', 'theme'];
+  cinematicBoost.forEach(term => {
+    if (allText.includes(term)) score += 2;
+  });
+  
+  // Penalize explicit content for cinematic playlists
+  if (track.explicit) score -= 3;
+  
+  // Prefer tracks with reasonable duration (2-8 minutes)
+  const durationMinutes = track.duration_ms / 60000;
+  if (durationMinutes >= 2 && durationMinutes <= 8) score += 1;
   
   return score;
 }
@@ -258,8 +249,8 @@ module.exports = async function handler(req, res) {
 
     // Search for tracks for each beat
     const playlist = [];
-    const maxTracksPerBeat = 3; // Reduced to avoid repetition
-    const usedTrackIds = new Set(); // Track duplicates across all beats
+    const maxTracksPerBeat = 4; // Allow more variety
+    const usedTrackIds = new Set();
     
     for (let i = 0; i < storyBeats.length; i++) {
       const beat = storyBeats[i];
@@ -273,9 +264,12 @@ module.exports = async function handler(req, res) {
         
         // Add track IDs to used set
         selectedTracks.forEach(track => usedTrackIds.add(track.id));
+        
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error(`❌ Error processing beat ${i + 1}:`, error);
-        continue; // Skip this beat and continue with others
+        continue;
       }
     }
 
@@ -286,8 +280,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Remove duplicate tracks and prepare final playlist
+    const uniquePlaylist = playlist.filter((track, index, self) => 
+      index === self.findIndex(t => t.id === track.id)
+    );
+
     // Simplify playlist data for frontend
-    const simplifiedPlaylist = playlist.map(track => ({
+    const simplifiedPlaylist = uniquePlaylist.map(track => ({
       id: track.id,
       name: track.name,
       artists: track.artists.map(a => a.name).join(", "),
@@ -295,11 +294,12 @@ module.exports = async function handler(req, res) {
       spotify_url: track.external_urls?.spotify || `https://open.spotify.com/track/${track.id}`,
       image: track.album.images[0]?.url || null,
       duration_ms: track.duration_ms,
-      popularity: track.popularity
+      popularity: track.popularity,
+      preview_url: track.preview_url,
+      relevanceScore: track.relevanceScore
     }));
 
     console.log(`✅ Final playlist generated with ${simplifiedPlaylist.length} tracks`);
-    console.log("Spotify URLs check:", simplifiedPlaylist.map(t => ({ name: t.name, spotify_url: t.spotify_url })));
     
     res.status(200).json({ 
       playlist: simplifiedPlaylist,
