@@ -194,15 +194,14 @@ module.exports = async function handler(req, res) {
       name: track.name,
       artists: track.artists.map(a => a.name).join(", "),
       album: track.album.name,
-      preview_url: track.preview_url,
-      spotify_url: track.external_urls.spotify,
+      spotify_url: track.external_urls?.spotify || `https://open.spotify.com/track/${track.id}`,
       image: track.album.images[0]?.url || null,
       duration_ms: track.duration_ms,
       popularity: track.popularity
     }));
 
     console.log(`✅ Final playlist generated with ${simplifiedPlaylist.length} tracks`);
-    console.log("Preview URLs check:", simplifiedPlaylist.map(t => ({ name: t.name, hasPreview: !!t.preview_url })));
+    console.log("Spotify URLs check:", simplifiedPlaylist.map(t => ({ name: t.name, spotify_url: t.spotify_url })));
     
     res.status(200).json({ 
       playlist: simplifiedPlaylist,
