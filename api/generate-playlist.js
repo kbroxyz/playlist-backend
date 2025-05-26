@@ -110,17 +110,21 @@ async function searchSpotify({ genre, mood }) {
       const tracks = result.body.tracks.items;
       console.log(`Found ${tracks.length} tracks for query: ${query}`);
       
-      // Filter tracks that have preview URLs
-      const tracksWithPreviews = tracks.filter(track => 
-        track.preview_url && 
-        track.preview_url !== null && 
-        track.preview_url.trim() !== ''
+      // Since we're using Spotify embeds, we don't need preview URLs
+      // Just filter out tracks without proper IDs or external URLs
+      const validTracks = tracks.filter(track => 
+        track.id && 
+        track.external_urls && 
+        track.external_urls.spotify &&
+        track.name &&
+        track.artists &&
+        track.artists.length > 0
       );
       
-      console.log(`Tracks with previews: ${tracksWithPreviews.length}`);
+      console.log(`Valid tracks for embedding: ${validTracks.length}`);
       
-      if (tracksWithPreviews.length >= 3) {
-        return tracksWithPreviews;
+      if (validTracks.length >= 3) {
+        return validTracks;
       }
     } catch (error) {
       console.error(`❌ Error searching with query "${query}":`, error);
@@ -128,7 +132,7 @@ async function searchSpotify({ genre, mood }) {
     }
   }
 
-  console.log("⚠️ No tracks with previews found for any query");
+  console.log("⚠️ No valid tracks found for any query");
   return [];
 }
 
@@ -183,8 +187,8 @@ module.exports = async function handler(req, res) {
 
     if (playlist.length === 0) {
       return res.status(404).json({ 
-        error: "No tracks with previews found",
-        message: "Try a different title or check your Spotify API credentials"
+        error: "No valid tracks found",
+        message: "Try a different title or check if tracks are available in your region"
       });
     }
 
