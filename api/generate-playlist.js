@@ -212,9 +212,9 @@ async function multiQuerySearch({ mood, energy, genre }, usedTrackIds = new Set(
     
     // Synonym combinations (top 3 synonyms only to avoid too many queries)
     ...moodSynonyms.slice(0, 3).map(syn => syn),
-    ...genreVariations.slice(0, 3).map(var => var),
+    ...genreVariations.slice(0, 3).map(variation => variation),
     ...moodSynonyms.slice(0, 2).map(syn => `${syn} ${genre}`),
-    ...genreVariations.slice(0, 2).map(var => `${mood} ${var}`),
+    ...genreVariations.slice(0, 2).map(variation => `${mood} ${variation}`),
     
     // Energy-based additions
     energy === 'low' ? `${genre} chill` : energy === 'high' ? `${genre} intense` : `${genre} moderate`,
