@@ -190,8 +190,12 @@ async function multiQuerySearch({ mood, energy, genre }, usedTrackIds = new Set(
   const moodSynonyms = moodExpansion[mood] || [mood];
   const genreVariations = genreExpansion[genre] || [genre];
   
-  // Create comprehensive query list
-  const queries = [
+  // Shuffle arrays to introduce randomness
+  const shuffledMoodSynonyms = [...moodSynonyms].sort(() => Math.random() - 0.5);
+  const shuffledGenreVariations = [...genreVariations].sort(() => Math.random() - 0.5);
+  
+  // Create comprehensive query list with randomization
+  let queries = [
     // Direct terms
     mood,
     genre,
@@ -210,11 +214,11 @@ async function multiQuerySearch({ mood, energy, genre }, usedTrackIds = new Set(
     `${mood} instrumental`,
     `instrumental ${genre}`,
     
-    // Synonym combinations (top 3 synonyms only to avoid too many queries)
-    ...moodSynonyms.slice(0, 3).map(syn => syn),
-    ...genreVariations.slice(0, 3).map(variation => variation),
-    ...moodSynonyms.slice(0, 2).map(syn => `${syn} ${genre}`),
-    ...genreVariations.slice(0, 2).map(variation => `${mood} ${variation}`),
+    // Synonym combinations (randomized selection)
+    ...shuffledMoodSynonyms.slice(0, 3).map(syn => syn),
+    ...shuffledGenreVariations.slice(0, 3).map(variation => variation),
+    ...shuffledMoodSynonyms.slice(0, 2).map(syn => `${syn} ${genre}`),
+    ...shuffledGenreVariations.slice(0, 2).map(variation => `${mood} ${variation}`),
     
     // Energy-based additions
     energy === 'low' ? `${genre} chill` : energy === 'high' ? `${genre} intense` : `${genre} moderate`,
@@ -226,11 +230,19 @@ async function multiQuerySearch({ mood, energy, genre }, usedTrackIds = new Set(
     `cinematic ${mood}`,
     `film ${genre}`,
     
+    // Additional variety queries
+    `${shuffledMoodSynonyms[0] || mood} ${shuffledGenreVariations[0] || genre}`,
+    `atmospheric ${genre}`,
+    `epic ${mood}`,
+    
     // Broader fallbacks
     'instrumental',
     'cinematic',
     'soundtrack'
   ];
+  
+  // Shuffle the entire query list for variety
+  queries = queries.sort(() => Math.random() - 0.5);
 
   const allTracks = [];
   const seenTrackIds = new Set();
