@@ -1,5 +1,6 @@
 const SpotifyWebApi = require("spotify-web-api-node");
 const OpenAI = require("openai");
+const axios = require("axios");
 
 // Init OpenAI client
 const openai = new OpenAI({
@@ -11,6 +12,38 @@ const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
 });
+
+// GetSongBPM API configuration
+const GETSONGBPM_API_KEY = "74f0fbb0fff7055b193d8fdf6b42605a";
+const GETSONGBPM_BASE_URL = "https://api.getsongbpm.com/song/";
+
+// Enhanced BPM ranges for different energy levels
+const energyBPMRanges = {
+  low: { min: 60, max: 90, ideal: [70, 80] },
+  medium: { min: 85, max: 130, ideal: [100, 120] },
+  high: { min: 125, max: 180, ideal: [130, 150] }
+};
+
+// Musical key emotion mapping
+const keyEmotionMap = {
+  // Major keys - generally brighter/happier
+  'C': { mood: ['epic', 'journey'], energy: 'medium' },
+  'D': { mood: ['epic', 'power'], energy: 'high' },
+  'E': { mood: ['intense', 'fight'], energy: 'high' },
+  'F': { mood: ['nostalgic', 'spiritual'], energy: 'low' },
+  'G': { mood: ['journey', 'nature'], energy: 'medium' },
+  'A': { mood: ['epic', 'power'], energy: 'high' },
+  'B': { mood: ['intense', 'ominous'], energy: 'high' },
+  
+  // Minor keys - generally darker/more emotional
+  'Cm': { mood: ['dark', 'ominous'], energy: 'medium' },
+  'Dm': { mood: ['mystery', 'guilt'], energy: 'low' },
+  'Em': { mood: ['dark', 'spiritual'], energy: 'medium' },
+  'Fm': { mood: ['scary', 'corrupt'], energy: 'low' },
+  'Gm': { mood: ['mystery', 'betrayal'], energy: 'medium' },
+  'Am': { mood: ['nostalgic', 'guilt'], energy: 'low' },
+  'Bm': { mood: ['dark', 'intense'], energy: 'medium' }
+};
 
 // Comprehensive mood/theme expansion dictionary
 const moodExpansion = {
@@ -89,6 +122,82 @@ const genreExpansion = {
   trance: ['uplifting', 'euphoric', 'psytrance', 'progressive trance'],
   trap: ['hip hop trap', 'electronic trap', 'bass', '808', 'hard']
 };
+
+// GetSongBPM API integration
+async function getSongBPMData(artist, title) {
+  try {
+    const encodedArtist = encodeURIComponent(artist);
+    const encodedTitle = encodeURIComponent(title);
+    const url = `${GETSONGBPM_BASE_URL}?api_key=${GETSONGBPM_API_KEY}&artist=${encodedArtist}&title=${encodedTitle}`;
+    
+    console.log(`🎵 Fetching BPM data for: ${artist} - ${title}`);
+    
+    const response = await axios.get(url, {
+      timeout: 5000, // 5 second timeout
+      headers: {
+        'User-Agent': 'Playlist-Generator/1.0'
+      }
+    });
+    
+    if (response.data && response.data.song) {
+      const songData = response.data.song;
+      console.log(`✅ BPM data found: BPM=${songData.tempo}, Key=${songData.key_of}, Energy=${songData.energy}`);
+      
+      return {
+        bpm: parseFloat(songData.tempo) || null,
+        key: songData.key_of || null,
+        energy: parseFloat(songData.energy) || null,
+        danceability: parseFloat(songData.danceability) || null,
+        happiness: parseFloat(songData.mood) || null
+      };
+    }
+    
+    console.log(`⚠️ No BPM data found for: ${artist} - ${title}`);
+    return null;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching BPM data for ${artist} - ${title}:`, error.message);
+    return null;
+  }
+}
+
+// Batch process BPM data with rate limiting
+async function enrichTracksWithBPMData(tracks) {
+  console.log(`🔍 Enriching ${tracks.length} tracks with BPM data...`);
+  
+  const enrichedTracks = [];
+  const batchSize = 5; // Process in small batches
+  const delayBetweenBatches = 1000; // 1 second delay
+  
+  for (let i = 0; i < tracks.length; i += batchSize) {
+    const batch = tracks.slice(i, i + batchSize);
+    
+    const batchPromises = batch.map(async (track) => {
+      const primaryArtist = track.artists[0]?.name || 'Unknown';
+      const bpmData = await getSongBPMData(primaryArtist, track.name);
+      
+      return {
+        ...track,
+        bpmData: bmpData
+      };
+    });
+    
+    const enrichedBatch = await Promise.all(batchPromises);
+    enrichedTracks.push(...enrichedBatch);
+    
+    console.log(`✅ Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(tracks.length/batchSize)}`);
+    
+    // Rate limiting delay
+    if (i + batchSize < tracks.length) {
+      await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+    }
+  }
+  
+  const tracksWithBPM = enrichedTracks.filter(track => track.bpmData);
+  console.log(`📊 Successfully enriched ${tracksWithBPM.length}/${tracks.length} tracks with BPM data`);
+  
+  return enrichedTracks;
+}
 
 async function getSpotifyAccessToken() {
   try {
@@ -294,17 +403,10 @@ async function multiQuerySearch({ mood, energy, genre }, usedTrackIds = new Set(
     return [];
   }
 
-  // Score and sort all tracks
-  const scoredTracks = allTracks.map(track => ({
-    ...track,
-    relevanceScore: calculateAdvancedScore(track, { mood, energy, genre })
-  })).sort((a, b) => b.relevanceScore - a.relevanceScore);
-
-  console.log(`✅ Returning top scored tracks (${Math.min(scoredTracks.length, 10)} tracks)`);
-  return scoredTracks;
+  return allTracks;
 }
 
-function calculateAdvancedScore(track, { mood, energy, genre }) {
+function calculateEnhancedScore(track, { mood, energy, genre }) {
   const trackName = track.name.toLowerCase();
   const albumName = track.album.name.toLowerCase();
   const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
@@ -332,6 +434,70 @@ function calculateAdvancedScore(track, { mood, energy, genre }) {
   genreVariations.forEach(variation => {
     if (allText.includes(variation)) score += 40;
   });
+  
+  // Enhanced BPM-based scoring
+  if (track.bpmData && track.bpmData.bpm) {
+    const targetRange = energyBPMRanges[energy];
+    const bpm = track.bpmData.bpm;
+    
+    // Perfect BPM match bonus
+    if (bpm >= targetRange.ideal[0] && bpm <= targetRange.ideal[1]) {
+      score += 60;
+    }
+    // Good BPM match bonus
+    else if (bpm >= targetRange.min && bpm <= targetRange.max) {
+      score += 35;
+    }
+    // Penalize if BPM is way off
+    else if (bpm < targetRange.min - 20 || bpm > targetRange.max + 20) {
+      score -= 25;
+    }
+  }
+  
+  // Musical key matching
+  if (track.bpmData && track.bpmData.key) {
+    const keyInfo = keyEmotionMap[track.bpmData.key];
+    if (keyInfo) {
+      // Boost if key matches mood
+      if (keyInfo.mood.includes(mood)) {
+        score += 40;
+      }
+      // Boost if key matches energy level
+      if (keyInfo.energy === energy) {
+        score += 30;
+      }
+    }
+  }
+  
+  // GetSongBPM energy level matching
+  if (track.bpmData && track.bpmData.energy !== null) {
+    const trackEnergy = track.bpmData.energy;
+    let targetEnergyRange;
+    
+    switch (energy) {
+      case 'low': targetEnergyRange = [0, 0.4]; break;
+      case 'medium': targetEnergyRange = [0.35, 0.75]; break;
+      case 'high': targetEnergyRange = [0.6, 1.0]; break;
+    }
+    
+    if (trackEnergy >= targetEnergyRange[0] && trackEnergy <= targetEnergyRange[1]) {
+      score += 45;
+    }
+  }
+  
+  // Danceability considerations
+  if (track.bpmData && track.bpmData.danceability !== null) {
+    const danceability = track.bpmData.danceability;
+    
+    // For cinematic/ambient genres, lower danceability might be preferred
+    if (['cinematic', 'ambient', 'dark'].includes(genre) && danceability < 0.5) {
+      score += 25;
+    }
+    // For electronic/dance genres, higher danceability is preferred
+    else if (['electronic', 'house', 'techno', 'trance'].includes(genre) && danceability > 0.6) {
+      score += 30;
+    }
+  }
   
   // Energy level bonuses
   const energyKeywords = {
@@ -409,9 +575,8 @@ module.exports = async function handler(req, res) {
     console.log(`📖 Generated ${storyBeats.length} story beats`);
 
     // Search for tracks for each beat using multi-query approach
-    const playlist = [];
+    const allCandidateTracks = [];
     const usedTrackIds = new Set();
-    const maxTracksPerBeat = 4;
     
     for (let i = 0; i < storyBeats.length; i++) {
       const beat = storyBeats[i];
@@ -421,14 +586,11 @@ module.exports = async function handler(req, res) {
         const tracks = await multiQuerySearch(beat, usedTrackIds);
         
         if (tracks.length > 0) {
-          const selectedTracks = tracks.slice(0, maxTracksPerBeat);
-          playlist.push(...selectedTracks);
+          // Take more tracks for BPM enrichment analysis
+          const selectedTracks = tracks.slice(0, 8);
+          allCandidateTracks.push(...selectedTracks.map(track => ({ ...track, beatIndex: i, beatInfo: beat })));
           
-          // Mark tracks as used
-          selectedTracks.forEach(track => usedTrackIds.add(track.id));
-          
-          console.log(`✅ Added ${selectedTracks.length} tracks for beat ${i + 1}`);
-          console.log(`  Top track: "${selectedTracks[0].name}" by ${selectedTracks[0].artists[0].name} (score: ${selectedTracks[0].relevanceScore})`);
+          console.log(`✅ Found ${selectedTracks.length} candidate tracks for beat ${i + 1}`);
         } else {
           console.log(`⚠️ No tracks found for beat ${i + 1}`);
         }
@@ -441,9 +603,9 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    console.log(`📊 Total tracks collected: ${playlist.length}`);
+    console.log(`📊 Total candidate tracks collected: ${allCandidateTracks.length}`);
 
-    if (playlist.length === 0) {
+    if (allCandidateTracks.length === 0) {
       return res.status(404).json({ 
         error: "No tracks found",
         message: "Unable to find tracks matching the story beats. This may be due to regional restrictions or very specific requirements.",
@@ -451,8 +613,40 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Enrich tracks with BPM data
+    const enrichedTracks = await enrichTracksWithBPMData(allCandidateTracks);
+
+    // Score all tracks with enhanced scoring including BPM data
+    const scoredTracks = enrichedTracks.map(track => ({
+      ...track,
+      relevanceScore: calculateEnhancedScore(track, track.beatInfo)
+    }));
+
+    // Group tracks by beat and select the best ones
+    const finalPlaylist = [];
+    const maxTracksPerBeat = 4;
+    
+    for (let i = 0; i < storyBeats.length; i++) {
+      const beatTracks = scoredTracks
+        .filter(track => track.beatIndex === i)
+        .sort((a, b) => b.relevanceScore - a.relevanceScore)
+        .slice(0, maxTracksPerBeat);
+      
+      if (beatTracks.length > 0) {
+        finalPlaylist.push(...beatTracks);
+        console.log(`✅ Selected ${beatTracks.length} tracks for beat ${i + 1}`);
+        console.log(`  Top track: "${beatTracks[0].name}" by ${beatTracks[0].artists[0].name} (score: ${beatTracks[0].relevanceScore})`);
+        
+        // Log BPM data if available
+        if (beatTracks[0].bpmData) {
+          const bpm = beatTracks[0].bpmData;
+          console.log(`  BPM: ${bpm.bpm}, Key: ${bmp.key}, Energy: ${bpm.energy}`);
+        }
+      }
+    }
+
     // Remove duplicates and prepare final playlist
-    const uniquePlaylist = playlist.filter((track, index, self) => 
+    const uniquePlaylist = finalPlaylist.filter((track, index, self) => 
       index === self.findIndex(t => t.id === track.id)
     );
 
@@ -466,19 +660,52 @@ module.exports = async function handler(req, res) {
       duration_ms: track.duration_ms,
       popularity: track.popularity,
       preview_url: track.preview_url || null,
-      relevanceScore: track.relevanceScore
+      relevanceScore: track.relevanceScore,
+      // Include BPM data in response
+      bpm: track.bmpData?.bpm || null,
+      key: track.bmpData?.key || null,
+      energy: track.bmpData?.energy || null,
+      danceability: track.bmpData?.danceability || null,
+      happiness: track.bmpData?.happiness || null,
+      beatIndex: track.beatIndex,
+      beatMood: track.beatInfo.mood,
+      beatEnergy: track.beatInfo.energy,
+      beatGenre: track.beatInfo.genre
     }));
 
+    // Calculate some statistics
+    const tracksWithBPM = simplifiedPlaylist.filter(track => track.bpm !== null);
+    const avgBPM = tracksWithBPM.length > 0 
+      ? Math.round(tracksWithBPM.reduce((sum, track) => sum + track.bpm, 0) / tracksWithBPM.length)
+      : null;
+
     console.log(`✅ Final playlist: ${simplifiedPlaylist.length} unique tracks`);
-    console.log("Top 3 tracks by score:");
-    simplifiedPlaylist.slice(0, 3).forEach((track, i) => {
-      console.log(`  ${i + 1}. "${track.name}" by ${track.artists} (${track.relevanceScore})`);
-    });
+    console.log(`📊 BPM enrichment: ${tracksWithBPM.length}/${simplifiedPlaylist.length} tracks (${Math.round(tracksWithBPM.length/simplifiedPlaylist.length*100)}%)`);
+    if (avgBPM) console.log(`🎵 Average BPM: ${avgBPM}`);
+    
+    console.log("Top 3 tracks by enhanced score:");
+    simplifiedPlaylist
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 3)
+      .forEach((track, i) => {
+        const bmpInfo = track.bpm ? ` [BPM: ${track.bpm}]` : '';
+        console.log(`  ${i + 1}. "${track.name}" by ${track.artists} (${track.relevanceScore})${bmpInfo}`);
+      });
     
     res.status(200).json({ 
       playlist: simplifiedPlaylist,
       totalTracks: simplifiedPlaylist.length,
-      storyBeats: storyBeats
+      storyBeats: storyBeats,
+      stats: {
+        tracksWithBPM: tracksWithBPM.length,
+        bmpEnrichmentRate: Math.round(tracksWithBPM.length/simplifiedPlaylist.length*100),
+        averageBPM: avgBPM,
+        energyDistribution: {
+          low: simplifiedPlaylist.filter(t => t.beatEnergy === 'low').length,
+          medium: simplifiedPlaylist.filter(t => t.beatEnergy === 'medium').length,
+          high: simplifiedPlaylist.filter(t => t.beatEnergy === 'high').length
+        }
+      }
     });
 
   } catch (error) {
