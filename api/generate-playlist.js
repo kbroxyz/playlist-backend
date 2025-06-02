@@ -178,7 +178,7 @@ async function enrichTracksWithBPMData(tracks) {
       
       return {
         ...track,
-        bpmData: bmpData
+        bpmData: bpmData
       };
     });
     
