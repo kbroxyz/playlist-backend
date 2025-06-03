@@ -684,7 +684,7 @@ module.exports = async function handler(req, res) {
     console.log("🔍 Sample tracks:");
     simplifiedPlaylist.slice(0, 3).forEach((track, i) => {
       const bpmInfo = track.bmp ? ` [BPM: ${track.bpm}]` : ' [No BPM]';
-      console.log(`  ${i + 1}. "${track.name}" by ${track.artists}${bmpInfo}`);
+      console.log(`  ${i + 1}. "${track.name}" by ${track.artists}${bpmInfo}`);
     });
     
     res.status(200).json({ 
