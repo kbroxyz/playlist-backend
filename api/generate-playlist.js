@@ -71,7 +71,7 @@ const moodToGenreMapping = {
     energy: {
       low: { bpm: [70, 90], keys: ['C', 'F'] },
       medium: { bpm: [90, 130], keys: ['G', 'D'] },
-      high: { bmp: [130, 180], keys: ['D', 'A', 'E'] }
+      high: { bpm: [130, 180], keys: ['D', 'A', 'E'] }
     }
   },
   intense: {
@@ -376,8 +376,8 @@ function calculateBPMKeyAwareScore(track, { mood, energy, genre }) {
   score += Math.min(track.popularity * 0.05, 5);
   
   // HIGHEST PRIORITY: BPM accuracy (since we pre-selected these tracks)
-  if (track.bmpData && track.bmpData.bpm) {
-    const bpm = track.bmpData.bpm;
+  if (track.bpmData && track.bpmData.bpm) {
+    const bpm = track.bpmData.bpm;
     const targetRange = energyBPMRanges[energy];
     
     // Perfect BPM match gets massive bonus
@@ -391,16 +391,16 @@ function calculateBPMKeyAwareScore(track, { mood, energy, genre }) {
   }
   
   // HIGH PRIORITY: Musical key accuracy
-  if (track.bmpData && track.bmpData.key) {
+  if (track.bpmData && track.bpmData.key) {
     const moodMapping = moodToGenreMapping[mood] || moodToGenreMapping.default;
-    const energySpec = moodMapping.energy[energy];
+    const energySpec = moodMapping.energy ? moodMapping.energy[energy] : null;
     
-    if (energySpec && energySpec.keys.includes(track.bmpData.key)) {
+    if (energySpec && energySpec.keys && energySpec.keys.includes(track.bpmData.key)) {
       score += 180; // Very high bonus for target key match
     }
     
     // Check key emotion mapping
-    const keyInfo = keyEmotionMap[track.bmpData.key];
+    const keyInfo = keyEmotionMap[track.bpmData.key];
     if (keyInfo) {
       if (keyInfo.mood.includes(mood)) {
         score += 120; // High bonus for mood-matching key
@@ -428,10 +428,10 @@ function calculateBPMKeyAwareScore(track, { mood, energy, genre }) {
   if (allText.includes(genre)) score += 60;
   
   // Musical characteristics from getSongBPM
-  if (track.bmpData) {
+  if (track.bpmData) {
     // Energy level matching
-    if (track.bmpData.energy !== null) {
-      const trackEnergy = track.bmpData.energy;
+    if (track.bpmData.energy !== null) {
+      const trackEnergy = track.bpmData.energy;
       let targetEnergyRange;
       
       switch (energy) {
@@ -446,8 +446,8 @@ function calculateBPMKeyAwareScore(track, { mood, energy, genre }) {
     }
     
     // Danceability considerations for film scoring
-    if (track.bmpData.danceability !== null) {
-      const danceability = track.bmpData.danceability;
+    if (track.bpmData.danceability !== null) {
+      const danceability = track.bpmData.danceability;
       
       // For cinematic use, moderate danceability is often preferred
       if (danceability >= 0.2 && danceability <= 0.7) {
@@ -527,7 +527,43 @@ async function generateBPMKeyFirstPlaylist(title, storyBeats) {
   console.log(`\n📊 Total BPM/Key-matched tracks collected: ${allCandidateTracks.length}`);
 
   if (allCandidateTracks.length === 0) {
-    throw new Error("No BPM/Key-matched tracks found");
+    console.log("⚠️ No BPM/Key-matched tracks found, falling back to basic search...");
+    
+    // Fallback: do a simple genre-based search if no BPM matches found
+    const fallbackTracks = [];
+    for (let i = 0; i < storyBeats.length; i++) {
+      const beat = storyBeats[i];
+      try {
+        console.log(`🔄 Fallback search for beat ${i + 1}: ${beat.mood}`);
+        
+        const result = await spotifyApi.searchTracks(beat.mood, { 
+          limit: 5,
+          market: 'US'
+        });
+        
+        const tracks = result.body.tracks.items;
+        if (tracks.length > 0) {
+          const enrichedTracks = tracks.map(track => ({
+            ...track,
+            beatIndex: i,
+            beatInfo: beat,
+            bpmData: null // No BPM data for fallback tracks
+          }));
+          fallbackTracks.push(...enrichedTracks);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        console.error(`❌ Fallback search failed for beat ${i + 1}:`, error);
+      }
+    }
+    
+    if (fallbackTracks.length === 0) {
+      throw new Error("No tracks found using BPM/Key search or fallback method");
+    }
+    
+    console.log(`🔄 Using ${fallbackTracks.length} fallback tracks`);
+    allCandidateTracks.push(...fallbackTracks);
   }
 
   console.log("🏆 Step 2: Scoring tracks by BPM/Key accuracy...");
@@ -769,7 +805,7 @@ module.exports = async function handler(req, res) {
       error: "Failed to generate playlist",
       message: error.message,
       processingTimeMs: totalElapsedTime,
-      approach: "bmp-key-first"
+      approach: "bpm-key-first"
     });
   }
 };
