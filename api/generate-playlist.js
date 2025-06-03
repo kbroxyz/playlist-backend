@@ -180,7 +180,7 @@ async function searchByBPMRange(minBPM, maxBPM, limit = 50) {
       } catch (bpmError) {
         console.log(`❌ BPM ${bpm} search failed: ${bpmError.message}`);
         if (bpmError.response) {
-          console.log(`   Status: ${bpmError.response.status}, Data: ${JSON.stringify(bmpError.response.data)}`);
+          console.log(`   Status: ${bpmError.response.status}, Data: ${JSON.stringify(bpmError.response.data)}`);
         }
         continue;
       }
@@ -551,8 +551,8 @@ async function generateBPMKeyFirstPlaylist(title, storyBeats) {
         console.log(`⚠️ No target tracks found for beat ${i + 1}`);
       }
       
-      // Delay between beats
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Delay between beats (reduced)
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
       
     } catch (error) {
       console.error(`❌ Error processing beat ${i + 1}:`, error);
@@ -624,7 +624,7 @@ async function generateBPMKeyFirstPlaylist(title, storyBeats) {
       
       const topTrack = beatTracks[0];
       console.log(`  Top track: "${topTrack.name}" by ${topTrack.artists[0].name}`);
-      console.log(`  BPM: ${topTrack.bmpData?.bpm}, Key: ${topTrack.bmpData?.key} (score: ${topTrack.relevanceScore})`);
+      console.log(`  BPM: ${topTrack.bpmData?.bpm}, Key: ${topTrack.bpmData?.key} (score: ${topTrack.relevanceScore})`);
     }
   }
 
