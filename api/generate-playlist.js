@@ -15,7 +15,7 @@ const spotifyApi = new SpotifyWebApi({
 
 // GetSongBPM API configuration
 const GETSONGBPM_API_KEY = "74f0fbb0fff7055b193d8fdf6b42605a";
-const GETSONGBPM_BASE_URL = "https://api.getsongbpm.com";
+const GETSONGBPM_BASE_URL = "https://api.getsong.co";
 
 // Enhanced BPM ranges for different energy levels
 const energyBPMRanges = {
