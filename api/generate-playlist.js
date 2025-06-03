@@ -104,54 +104,90 @@ const moodToGenreMapping = {
   }
 };
 
-// NEW: Search getSongBPM by BPM range
+// FIXED: Search getSongBPM by single BPM values (API doesn't support ranges)
 async function searchByBPMRange(minBPM, maxBPM, limit = 50) {
   try {
-    console.log(`🎵 Searching getSongBPM for tracks with BPM ${minBPM}-${maxBPM}`);
+    console.log(`🎵 Searching getSongBPM for tracks with BPM ${minBPM}-${maxBPM} using single BPM values`);
     
-    // Try different endpoint patterns for tempo search
-    const possibleEndpoints = [
-      `${GETSONGBPM_BASE_URL}/tempo/?api_key=${GETSONGBPM_API_KEY}&min=${minBPM}&max=${maxBPM}&limit=${limit}`,
-      `${GETSONGBPM_BASE_URL}/search/?api_key=${GETSONGBPM_API_KEY}&type=tempo&min=${minBPM}&max=${maxBPM}&limit=${limit}`,
-      `${GETSONGBPM_BASE_URL}/search/?api_key=${GETSONGBPM_API_KEY}&type=song&tempo_min=${minBPM}&tempo_max=${maxBPM}&limit=${limit}`
-    ];
+    // Since API only accepts single BPM values, create strategic BPM points within the range
+    const bpmValues = [];
+    const numPoints = Math.min(5, Math.max(3, Math.floor((maxBPM - minBPM) / 8))); // 3-5 points
+    const step = (maxBPM - minBPM) / (numPoints - 1);
     
-    for (const endpoint of possibleEndpoints) {
+    // Create evenly distributed BPM points across the range
+    for (let i = 0; i < numPoints; i++) {
+      const bpm = Math.round(minBPM + (step * i));
+      bpmValues.push(bpm);
+    }
+    
+    // Remove duplicates and sort
+    const uniqueBPMValues = [...new Set(bpmValues)].sort((a, b) => a - b);
+    console.log(`🔍 Searching individual BPM values: ${uniqueBPMValues.join(', ')}`);
+    
+    const allTracks = [];
+    
+    // Search each individual BPM value
+    for (const bpm of uniqueBPMValues) {
       try {
-        console.log(`🔍 Trying endpoint: ${endpoint}`);
+        const endpoint = `${GETSONGBPM_BASE_URL}/tempo/?api_key=${GETSONGBPM_API_KEY}&bpm=${bpm}&limit=${Math.min(limit, 20)}`;
+        console.log(`🔍 Searching single BPM: ${bpm}`);
         
         const response = await axios.get(endpoint, {
           timeout: 5000,
           headers: { 'User-Agent': 'Playlist-Generator/1.0' }
         });
         
-        console.log(`📊 BPM search response:`, JSON.stringify(response.data, null, 2));
+        console.log(`📊 BPM ${bpm} response status: ${response.status}`);
         
-        // Handle different response structures
-        let songs = [];
-        if (response.data.songs) {
-          songs = response.data.songs;
-        } else if (response.data.search) {
-          songs = response.data.search;
+        // Handle response - should be array of tempo objects
+        let tracks = [];
+        if (Array.isArray(response.data)) {
+          tracks = response.data;
         } else if (response.data.results) {
-          songs = response.data.results;
-        } else if (Array.isArray(response.data)) {
-          songs = response.data;
+          tracks = response.data.results;
+        } else if (response.data.tracks) {
+          tracks = response.data.tracks;
+        } else if (response.data.data) {
+          tracks = response.data.data;
         }
         
-        if (songs && songs.length > 0) {
-          console.log(`✅ Found ${songs.length} tracks in BPM range ${minBPM}-${maxBPM}`);
-          return songs;
+        if (tracks && tracks.length > 0) {
+          console.log(`✅ Found ${tracks.length} tracks at BPM ${bpm}`);
+          
+          // Convert tempo objects to standardized format
+          const songObjects = tracks.map(track => ({
+            id: track.song_id || track.id,
+            title: track.song_title || track.title,
+            uri: track.song_uri || track.uri,
+            tempo: track.tempo || bpm,
+            artist: track.artist,
+            album: track.album,
+            key_of: track.key_of || null,
+            danceability: track.danceability || null,
+            acousticness: track.acousticness || null,
+            _source: 'tempo_search',
+            _bpm_searched: bpm
+          }));
+          
+          allTracks.push(...songObjects);
+        } else {
+          console.log(`⚠️ No tracks found at BPM ${bpm}`);
         }
         
-      } catch (endpointError) {
-        console.log(`❌ Endpoint failed: ${endpointError.message}`);
+        // Rate limiting delay between BPM searches
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+      } catch (bpmError) {
+        console.log(`❌ BPM ${bpm} search failed: ${bpmError.message}`);
+        if (bpmError.response) {
+          console.log(`   Status: ${bpmError.response.status}, Data: ${JSON.stringify(bmpError.response.data)}`);
+        }
         continue;
       }
     }
     
-    console.log(`⚠️ No tracks found in BPM range ${minBPM}-${maxBPM} using any endpoint`);
-    return [];
+    console.log(`✅ Total tracks found across BPM range ${minBPM}-${maxBPM}: ${allTracks.length}`);
+    return allTracks;
     
   } catch (error) {
     console.error(`❌ Error searching by BPM range:`, error.message);
@@ -588,7 +624,7 @@ async function generateBPMKeyFirstPlaylist(title, storyBeats) {
       
       const topTrack = beatTracks[0];
       console.log(`  Top track: "${topTrack.name}" by ${topTrack.artists[0].name}`);
-      console.log(`  BPM: ${topTrack.bpmData?.bpm}, Key: ${topTrack.bpmData?.key} (score: ${topTrack.relevanceScore})`);
+      console.log(`  BPM: ${topTrack.bmpData?.bpm}, Key: ${topTrack.bmpData?.key} (score: ${topTrack.relevanceScore})`);
     }
   }
 
