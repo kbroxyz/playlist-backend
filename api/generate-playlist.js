@@ -123,7 +123,7 @@ const genreExpansion = {
   trap: ['hip hop trap', 'electronic trap', 'bass', '808', 'hard']
 };
 
-// GetSongBPM API integration
+// IMPROVED: GetSongBPM API integration with enhanced debugging
 async function getSongBPMData(artist, title) {
   try {
     const encodedArtist = encodeURIComponent(artist);
@@ -131,6 +131,7 @@ async function getSongBPMData(artist, title) {
     const url = `${GETSONGBPM_BASE_URL}?api_key=${GETSONGBPM_API_KEY}&artist=${encodedArtist}&title=${encodedTitle}`;
     
     console.log(`🎵 Fetching BPM data for: ${artist} - ${title}`);
+    console.log(`🔗 API URL: ${url}`); // DEBUG: Log the actual URL
     
     const response = await axios.get(url, {
       timeout: 5000, // 5 second timeout
@@ -139,29 +140,54 @@ async function getSongBPMData(artist, title) {
       }
     });
     
+    console.log(`📊 Raw API response:`, response.data); // DEBUG: Log raw response
+    
     if (response.data && response.data.song) {
       const songData = response.data.song;
       console.log(`✅ BPM data found: BPM=${songData.tempo}, Key=${songData.key_of}, Energy=${songData.energy}`);
       
-      return {
+      const enrichedData = {
         bpm: parseFloat(songData.tempo) || null,
         key: songData.key_of || null,
         energy: parseFloat(songData.energy) || null,
         danceability: parseFloat(songData.danceability) || null,
         happiness: parseFloat(songData.mood) || null
       };
+      
+      console.log(`🎼 Parsed BPM data:`, enrichedData); // DEBUG: Log parsed data
+      return enrichedData;
     }
     
     console.log(`⚠️ No BPM data found for: ${artist} - ${title}`);
+    console.log(`📋 Response structure:`, JSON.stringify(response.data, null, 2)); // DEBUG
     return null;
     
   } catch (error) {
     console.error(`❌ Error fetching BPM data for ${artist} - ${title}:`, error.message);
+    if (error.response) {
+      console.error(`📋 Error response:`, error.response.data); // DEBUG: Log error response
+    }
     return null;
   }
 }
 
-// Batch process BPM data with rate limiting
+// DEBUGGING: Add a test function to verify BPM API
+async function testBPMAPI() {
+  console.log("🧪 Testing getSongBPM API...");
+  
+  // Test with a known popular song
+  const testResult = await getSongBPMData("The Weeknd", "Blinding Lights");
+  
+  if (testResult) {
+    console.log("✅ BPM API test successful:", testResult);
+    return true;
+  } else {
+    console.log("❌ BPM API test failed");
+    return false;
+  }
+}
+
+// FIXED: Batch process BPM data with rate limiting
 async function enrichTracksWithBPMData(tracks) {
   console.log(`🔍 Enriching ${tracks.length} tracks with BPM data...`);
   
@@ -178,7 +204,7 @@ async function enrichTracksWithBPMData(tracks) {
       
       return {
         ...track,
-        bpmData: bpmData
+        bpmData: bpmData // FIXED: Consistent naming
       };
     });
     
@@ -193,13 +219,14 @@ async function enrichTracksWithBPMData(tracks) {
     }
   }
   
-  const tracksWithBPM = enrichedTracks.filter(track => track.bmpData);
+  // FIXED: Correct variable name
+  const tracksWithBPM = enrichedTracks.filter(track => track.bpmData);
   console.log(`📊 Successfully enriched ${tracksWithBPM.length}/${tracks.length} tracks with BPM data`);
   
   return enrichedTracks;
 }
 
-// NEW: Filter tracks based on BPM data for film relevance
+// FIXED: Filter tracks based on BPM data for film relevance
 function filterTracksForFilmRelevance(enrichedTracks) {
   const relevantTracks = [];
   
@@ -207,19 +234,19 @@ function filterTracksForFilmRelevance(enrichedTracks) {
     let isRelevant = false;
     const beat = track.beatInfo;
     
-    // If we have BPM data, use it for filtering
+    // FIXED: Consistent variable naming
     if (track.bpmData) {
-      const bmpData = track.bmpData;
+      const bpmData = track.bpmData; // FIXED: Was bmpData
       
       // 1. Check BPM range relevance
       const targetRange = energyBPMRanges[beat.energy];
-      if (bmpData.bpm && bmpData.bpm >= targetRange.min && bmpData.bpm <= targetRange.max) {
+      if (bpmData.bpm && bpmData.bpm >= targetRange.min && bpmData.bpm <= targetRange.max) {
         isRelevant = true;
       }
       
       // 2. Check energy level match
-      if (bmpData.energy !== null) {
-        const trackEnergy = bmpData.energy;
+      if (bpmData.energy !== null) {
+        const trackEnergy = bpmData.energy;
         let targetEnergyRange;
         
         switch (beat.energy) {
@@ -234,16 +261,16 @@ function filterTracksForFilmRelevance(enrichedTracks) {
       }
       
       // 3. Check musical key emotion mapping
-      if (bmpData.key && keyEmotionMap[bmpData.key]) {
-        const keyInfo = keyEmotionMap[bmpData.key];
+      if (bpmData.key && keyEmotionMap[bpmData.key]) {
+        const keyInfo = keyEmotionMap[bpmData.key];
         if (keyInfo.mood.includes(beat.mood) || keyInfo.energy === beat.energy) {
           isRelevant = true;
         }
       }
       
       // 4. Danceability filter for cinematic genres
-      if (bmpData.danceability !== null) {
-        const danceability = bmpData.danceability;
+      if (bpmData.danceability !== null) {
+        const danceability = bpmData.danceability;
         
         // For cinematic/atmospheric tracks, prefer lower danceability
         if (['cinematic', 'ambient', 'dark', 'mystery'].includes(beat.genre)) {
@@ -266,8 +293,8 @@ function filterTracksForFilmRelevance(enrichedTracks) {
       }
       
       // 5. Happiness/mood filter (if available)
-      if (bmpData.happiness !== null) {
-        const happiness = bmpData.happiness;
+      if (bpmData.happiness !== null) {
+        const happiness = bpmData.happiness;
         
         // Dark/ominous moods should have lower happiness
         if (['dark', 'ominous', 'scary', 'corrupt', 'betrayal'].includes(beat.mood)) {
@@ -325,8 +352,8 @@ function filterTracksForFilmRelevance(enrichedTracks) {
   
   console.log(`🎯 Filtered ${enrichedTracks.length} tracks to ${relevantTracks.length} relevant tracks`);
   
-  // Log filtering stats
-  const withBPM = relevantTracks.filter(t => t.bmpData).length;
+  // FIXED: Correct variable name
+  const withBPM = relevantTracks.filter(t => t.bpmData).length;
   const withoutBPM = relevantTracks.length - withBPM;
   console.log(`  - ${withBPM} tracks with BPM data`);
   console.log(`  - ${withoutBPM} tracks without BPM data (kept as fallback)`);
@@ -793,6 +820,13 @@ module.exports = async function handler(req, res) {
     }
     console.log("✅ Spotify connectivity confirmed");
     
+    // ADDED: Test BPM API connectivity
+    console.log("🧪 Testing BPM API connectivity...");
+    const bpmTestSuccess = await testBPMAPI();
+    if (!bpmTestSuccess) {
+      console.log("⚠️ BPM API test failed, but continuing with Spotify data only");
+    }
+    
     // Get story beats from GPT
     const storyBeats = await getStoryBeatsFromGPT(title.trim());
     console.log(`📖 Generated ${storyBeats.length} story beats`);
@@ -816,7 +850,7 @@ module.exports = async function handler(req, res) {
       popularity: track.popularity,
       preview_url: track.preview_url || null,
       relevanceScore: track.relevanceScore,
-      // Include BPM data in response
+      // FIXED: Include BPM data in response with correct variable names
       bpm: track.bpmData?.bpm || null,
       key: track.bpmData?.key || null,
       energy: track.bpmData?.energy || null,
@@ -837,6 +871,13 @@ module.exports = async function handler(req, res) {
     console.log(`✅ Final playlist: ${simplifiedPlaylist.length} unique tracks`);
     console.log(`📊 BPM enrichment: ${tracksWithBPM.length}/${simplifiedPlaylist.length} tracks (${Math.round(tracksWithBPM.length/simplifiedPlaylist.length*100)}%)`);
     if (avgBPM) console.log(`🎵 Average BPM: ${avgBPM}`);
+    
+    // DEBUG: Log first few tracks with their BPM data
+    console.log("🔍 Sample tracks with BPM data:");
+    simplifiedPlaylist.slice(0, 3).forEach((track, i) => {
+      const bpmInfo = track.bpm ? ` [BPM: ${track.bpm}, Key: ${track.key}, Energy: ${track.energy}]` : ' [No BPM data]';
+      console.log(`  ${i + 1}. "${track.name}" by ${track.artists}${bpmInfo}`);
+    });
     
     console.log("Top 3 tracks by enhanced score:");
     simplifiedPlaylist
