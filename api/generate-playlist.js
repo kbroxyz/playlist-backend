@@ -43,7 +43,174 @@ const keyEmotionMap = {
   'Bm': { mood: ['dark', 'intense'], energy: 'medium' }
 };
 
-// Comprehensive mood/theme expansion dictionary
+// ENHANCED: Mood to Genre Mapping System
+const moodToGenreMapping = {
+  dark: {
+    primary: ['dark ambient', 'industrial', 'post-rock', 'drone'],
+    secondary: ['black metal', 'darkwave', 'gothic', 'doom metal'],
+    energy: {
+      low: ['dark ambient', 'drone', 'post-rock'],
+      medium: ['industrial', 'darkwave', 'gothic'],
+      high: ['black metal', 'doom metal', 'industrial metal']
+    }
+  },
+  ominous: {
+    primary: ['dark ambient', 'industrial', 'horror soundtrack', 'drone'],
+    secondary: ['doom metal', 'black metal', 'darkwave'],
+    energy: {
+      low: ['dark ambient', 'drone', 'horror soundtrack'],
+      medium: ['industrial', 'darkwave'],
+      high: ['doom metal', 'black metal', 'industrial metal']
+    }
+  },
+  scary: {
+    primary: ['horror soundtrack', 'dark ambient', 'industrial'],
+    secondary: ['black metal', 'death metal', 'noise'],
+    energy: {
+      low: ['horror soundtrack', 'dark ambient'],
+      medium: ['industrial', 'darkwave'],
+      high: ['black metal', 'death metal', 'grindcore']
+    }
+  },
+  mystery: {
+    primary: ['ambient', 'jazz', 'neo-noir soundtrack', 'trip hop'],
+    secondary: ['downtempo', 'lounge', 'film noir'],
+    energy: {
+      low: ['ambient', 'lounge', 'trip hop'],
+      medium: ['jazz', 'downtempo', 'neo-soul'],
+      high: ['bebop', 'fusion jazz', 'drum and bass']
+    }
+  },
+  betrayal: {
+    primary: ['neo-classical', 'chamber music', 'piano', 'string quartet'],
+    secondary: ['post-rock', 'ambient', 'modern classical'],
+    energy: {
+      low: ['piano', 'chamber music', 'ambient'],
+      medium: ['neo-classical', 'string quartet'],
+      high: ['post-rock', 'modern classical', 'orchestral']
+    }
+  },
+  guilt: {
+    primary: ['piano', 'chamber music', 'ambient', 'singer-songwriter'],
+    secondary: ['indie folk', 'neo-classical', 'minimalist'],
+    energy: {
+      low: ['piano', 'ambient', 'singer-songwriter'],
+      medium: ['chamber music', 'indie folk'],
+      high: ['post-rock', 'alternative rock']
+    }
+  },
+  nostalgic: {
+    primary: ['indie folk', 'ambient', 'piano', 'acoustic'],
+    secondary: ['singer-songwriter', 'chamber pop', 'dream pop'],
+    energy: {
+      low: ['ambient', 'piano', 'acoustic'],
+      medium: ['indie folk', 'singer-songwriter'],
+      high: ['indie rock', 'alternative rock']
+    }
+  },
+  intense: {
+    primary: ['electronic', 'techno', 'industrial', 'metal'],
+    secondary: ['drum and bass', 'hardcore', 'progressive metal'],
+    energy: {
+      low: ['ambient techno', 'downtempo', 'trip hop'],
+      medium: ['electronic', 'techno', 'industrial'],
+      high: ['hardcore', 'drum and bass', 'metal']
+    }
+  },
+  fight: {
+    primary: ['metal', 'hardcore', 'electronic', 'rock'],
+    secondary: ['thrash metal', 'drum and bass', 'industrial'],
+    energy: {
+      low: ['post-metal', 'sludge metal'],
+      medium: ['metal', 'hard rock', 'industrial'],
+      high: ['thrash metal', 'hardcore', 'speed metal']
+    }
+  },
+  epic: {
+    primary: ['orchestral', 'symphonic metal', 'progressive rock', 'film score'],
+    secondary: ['post-rock', 'cinematic', 'trailer music'],
+    energy: {
+      low: ['orchestral', 'film score', 'ambient orchestral'],
+      medium: ['symphonic metal', 'progressive rock'],
+      high: ['symphonic metal', 'progressive metal', 'power metal']
+    }
+  },
+  power: {
+    primary: ['symphonic metal', 'orchestral', 'epic music', 'progressive metal'],
+    secondary: ['power metal', 'film score', 'trailer music'],
+    energy: {
+      low: ['orchestral', 'film score'],
+      medium: ['symphonic metal', 'progressive metal'],
+      high: ['power metal', 'symphonic metal', 'epic metal']
+    }
+  },
+  journey: {
+    primary: ['folk', 'world music', 'acoustic', 'ambient'],
+    secondary: ['indie folk', 'celtic', 'new age'],
+    energy: {
+      low: ['ambient', 'new age', 'acoustic'],
+      medium: ['folk', 'world music', 'indie folk'],
+      high: ['celtic rock', 'folk rock', 'world fusion']
+    }
+  },
+  spiritual: {
+    primary: ['ambient', 'new age', 'world music', 'gospel'],
+    secondary: ['sacred music', 'meditation', 'drone'],
+    energy: {
+      low: ['ambient', 'meditation', 'drone'],
+      medium: ['new age', 'world music'],
+      high: ['gospel', 'spiritual jazz', 'world fusion']
+    }
+  },
+  crime: {
+    primary: ['hip hop', 'trip hop', 'jazz', 'electronic'],
+    secondary: ['gangsta rap', 'noir jazz', 'downtempo'],
+    energy: {
+      low: ['trip hop', 'noir jazz', 'downtempo'],
+      medium: ['hip hop', 'jazz', 'electronic'],
+      high: ['gangsta rap', 'hardcore hip hop', 'breakbeat']
+    }
+  },
+  corrupt: {
+    primary: ['industrial', 'dark electronic', 'noise', 'experimental'],
+    secondary: ['dark ambient', 'harsh noise', 'power electronics'],
+    energy: {
+      low: ['dark ambient', 'drone', 'noise'],
+      medium: ['industrial', 'dark electronic'],
+      high: ['harsh noise', 'power electronics', 'digital hardcore']
+    }
+  },
+  future: {
+    primary: ['synthwave', 'cyberpunk', 'electronic', 'ambient techno'],
+    secondary: ['retrowave', 'vaporwave', 'dark synthwave'],
+    energy: {
+      low: ['ambient techno', 'vaporwave', 'drone'],
+      medium: ['synthwave', 'electronic', 'cyberpunk'],
+      high: ['dark synthwave', 'industrial electronic', 'hardcore techno']
+    }
+  },
+  nature: {
+    primary: ['ambient', 'folk', 'world music', 'new age'],
+    secondary: ['field recording', 'acoustic', 'celtic'],
+    energy: {
+      low: ['ambient', 'field recording', 'new age'],
+      medium: ['folk', 'world music', 'acoustic'],
+      high: ['celtic rock', 'folk rock', 'world fusion']
+    }
+  },
+  // Fallback for unmapped moods
+  default: {
+    primary: ['ambient', 'electronic', 'orchestral', 'indie'],
+    secondary: ['cinematic', 'instrumental', 'soundtrack'],
+    energy: {
+      low: ['ambient', 'piano', 'acoustic'],
+      medium: ['electronic', 'indie', 'orchestral'],
+      high: ['rock', 'metal', 'electronic']
+    }
+  }
+};
+
+// Comprehensive mood/theme expansion dictionary (kept for fallback and additional scoring)
 const moodExpansion = {
   ambush: ['attack', 'surprise', 'strike', 'assault', 'sudden', 'stealth'],
   betrayal: ['treachery', 'deception', 'backstab', 'unfaithful', 'dishonest', 'double cross'],
@@ -79,74 +246,32 @@ const moodExpansion = {
   tribe: ['tribal', 'community', 'clan', 'group', 'indigenous', 'ancient', 'ritual']
 };
 
-// Genre expansion and variations
+// Genre expansion (kept for fallback)
 const genreExpansion = {
   ambient: ['atmospheric', 'drone', 'meditation', 'space', 'new age', 'soundscape'],
-  bass: ['heavy bass', 'sub bass', 'bass heavy', 'low end', 'bass music'],
-  chill: ['relaxed', 'calm', 'peaceful', 'mellow', 'laid back', 'smooth'],
-  chillstep: ['chill dubstep', 'melodic dubstep', 'liquid dubstep', 'future bass'],
   cinematic: ['film score', 'movie soundtrack', 'orchestral', 'epic', 'trailer music'],
-  dark: ['darkwave', 'dark ambient', 'industrial', 'gothic', 'shadow'],
-  'deep house': ['deep', 'soulful house', 'underground house', 'tech house'],
-  downtempo: ['trip hop', 'lounge', 'chillout', 'slow', 'relaxed'],
-  'drum & bass': ['dnb', 'jungle', 'liquid dnb', 'neurofunk', 'breakbeat'],
-  dubstep: ['wobble', 'bass drop', 'electronic', 'glitch', 'step'],
-  'electro house': ['electro', 'big room', 'festival', 'dance', 'club'],
   electronic: ['synth', 'digital', 'edm', 'electronica', 'synthetic'],
-  electronica: ['idm', 'intelligent dance', 'experimental electronic', 'glitch'],
-  experimental: ['avant-garde', 'abstract', 'noise', 'unconventional', 'art'],
-  'future garage': ['uk garage', '2-step', 'future beats', 'bass music'],
-  garage: ['uk garage', '2-step', 'speed garage', 'bass'],
-  'hard techno': ['industrial techno', 'hardcore', 'hard dance', 'rave'],
-  'hip-hop': ['rap', 'beats', 'urban', 'street', 'boom bap'],
-  house: ['dance', 'club', '4/4', 'electronic dance', 'disco'],
-  jazz: ['smooth jazz', 'fusion', 'bebop', 'swing', 'blues'],
-  jungle: ['drum and bass', 'breakbeat', 'ragga', 'hardcore'],
-  'low-fi': ['lofi', 'lo-fi hip hop', 'chill beats', 'study music', 'vinyl'],
-  'melodic techno': ['progressive techno', 'deep techno', 'emotional techno'],
-  'melodic house': ['progressive house', 'deep house', 'emotional house'],
-  minimal: ['minimalist', 'stripped down', 'simple', 'repetitive', 'clean'],
-  'organic house': ['natural', 'earthy', 'world music', 'ethnic', 'tribal'],
-  pop: ['mainstream', 'radio', 'catchy', 'commercial', 'vocal'],
-  progressive: ['prog', 'evolving', 'journey', 'buildup', 'cinematic'],
-  'progressive house': ['prog house', 'uplifting', 'emotional', 'journey'],
-  'progressive trance': ['prog trance', 'uplifting trance', 'emotional trance'],
-  rock: ['alternative', 'indie rock', 'post-rock', 'guitar', 'band'],
-  synth: ['synthesizer', 'analog', 'retro', 'vintage', 'electronic'],
-  synthpop: ['new wave', '80s', 'retro pop', 'synth wave'],
-  synthwave: ['retrowave', 'outrun', '80s', 'neon', 'cyberpunk', 'vaporwave'],
-  'tech house': ['techno house', 'minimal house', 'underground'],
-  techno: ['four on the floor', 'industrial', 'rave', 'electronic dance'],
-  trance: ['uplifting', 'euphoric', 'psytrance', 'progressive trance'],
-  trap: ['hip hop trap', 'electronic trap', 'bass', '808', 'hard']
+  progressive: ['prog', 'evolving', 'journey', 'buildup', 'cinematic']
 };
 
-// FIXED: Correct getSongBPM API integration (two-step process)
+// FIXED: Correct getSongBPM API integration
 async function getSongBPMData(artist, title) {
   try {
-    // Step 1: Search for the song to get its ID
     const searchQuery = encodeURIComponent(`${title} ${artist}`);
     const searchUrl = `${GETSONGBPM_SEARCH_URL}?api_key=${GETSONGBPM_API_KEY}&type=song&lookup=${searchQuery}`;
     
-    console.log(`🔍 Searching for song: ${artist} - ${title}`);
-    
     const searchResponse = await axios.get(searchUrl, {
-      timeout: 3000, // Reduced timeout
-      headers: {
-        'User-Agent': 'Playlist-Generator/1.0'
-      }
+      timeout: 3000,
+      headers: { 'User-Agent': 'Playlist-Generator/1.0' }
     });
     
     if (!searchResponse.data || !searchResponse.data.search || searchResponse.data.search.length === 0) {
-      console.log(`⚠️ No search results for: ${artist} - ${title}`);
       return null;
     }
     
-    // Find the best matching song (look for artist match)
     let songId = null;
     const searchResults = searchResponse.data.search;
     
-    // First try exact artist match
     for (const result of searchResults) {
       if (result.artist && result.artist.name && 
           result.artist.name.toLowerCase().includes(artist.toLowerCase())) {
@@ -155,30 +280,20 @@ async function getSongBPMData(artist, title) {
       }
     }
     
-    // If no exact match, take the first result
     if (!songId && searchResults.length > 0) {
       songId = searchResults[0].id;
     }
     
-    if (!songId) {
-      console.log(`⚠️ No song ID found for: ${artist} - ${title}`);
-      return null;
-    }
+    if (!songId) return null;
     
-    // Step 2: Get BPM data using the song ID
     const songUrl = `${GETSONGBPM_SONG_URL}?api_key=${GETSONGBPM_API_KEY}&id=${songId}`;
-    
     const songResponse = await axios.get(songUrl, {
-      timeout: 3000, // Reduced timeout
-      headers: {
-        'User-Agent': 'Playlist-Generator/1.0'
-      }
+      timeout: 3000,
+      headers: { 'User-Agent': 'Playlist-Generator/1.0' }
     });
     
     if (songResponse.data && songResponse.data.song) {
       const songData = songResponse.data.song;
-      console.log(`✅ BPM data found: BPM=${songData.tempo}, Key=${songData.key_of}`);
-      
       return {
         bpm: parseFloat(songData.tempo) || null,
         key: songData.key_of || null,
@@ -188,25 +303,20 @@ async function getSongBPMData(artist, title) {
       };
     }
     
-    console.log(`⚠️ No song data returned for ID: ${songId}`);
     return null;
-    
   } catch (error) {
     console.error(`❌ Error fetching BPM data for ${artist} - ${title}:`, error.message);
     return null;
   }
 }
 
-// OPTIMIZED: Faster BPM enrichment with reduced processing
+// OPTIMIZED: BPM enrichment
 async function enrichTracksWithBPMData(tracks) {
   console.log(`🔍 Enriching ${tracks.length} tracks with BPM data...`);
   
   const enrichedTracks = [];
-  const batchSize = 3; // Reduced batch size for faster processing
-  const delayBetweenBatches = 500; // Reduced delay
-  const maxTracksToEnrich = Math.min(tracks.length, 20); // Limit total tracks to prevent timeout
-  
-  console.log(`⚡ Processing only first ${maxTracksToEnrich} tracks to prevent timeout`);
+  const batchSize = 3;
+  const maxTracksToEnrich = Math.min(tracks.length, 15);
   
   for (let i = 0; i < maxTracksToEnrich; i += batchSize) {
     const batch = tracks.slice(i, i + batchSize);
@@ -214,7 +324,6 @@ async function enrichTracksWithBPMData(tracks) {
     const batchPromises = batch.map(async (track) => {
       const primaryArtist = track.artists[0]?.name || 'Unknown';
       
-      // Skip tracks with problematic artist names
       if (primaryArtist.toLowerCase().includes('various') || 
           primaryArtist.toLowerCase().includes('soundtrack') ||
           primaryArtist.length > 50) {
@@ -228,88 +337,197 @@ async function enrichTracksWithBPMData(tracks) {
     const enrichedBatch = await Promise.all(batchPromises);
     enrichedTracks.push(...enrichedBatch);
     
-    console.log(`✅ Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(maxTracksToEnrich/batchSize)}`);
-    
-    // Rate limiting delay
     if (i + batchSize < maxTracksToEnrich) {
-      await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
   
-  // Add remaining tracks without BPM data
   if (tracks.length > maxTracksToEnrich) {
     const remainingTracks = tracks.slice(maxTracksToEnrich).map(track => ({
-      ...track,
-      bpmData: null
+      ...track, bpmData: null
     }));
     enrichedTracks.push(...remainingTracks);
   }
   
-  const tracksWithBPM = enrichedTracks.filter(track => track.bpmData);
+  const tracksWithBPM = enrichedTracks.filter(track => track.bmpData);
   console.log(`📊 Successfully enriched ${tracksWithBPM.length}/${enrichedTracks.length} tracks with BPM data`);
   
   return enrichedTracks;
 }
 
-// SIMPLIFIED: Less strict filtering to prevent empty playlists
-function filterTracksForFilmRelevance(enrichedTracks) {
-  const relevantTracks = [];
+// ENHANCED: Genre-focused Spotify search
+async function searchSpotifyByGenre({ mood, energy, genre }, usedTrackIds = new Set()) {
+  console.log(`🎯 Genre-focused search for mood: ${mood}, energy: ${energy}`);
   
-  for (const track of enrichedTracks) {
-    let isRelevant = false;
-    const beat = track.beatInfo;
+  const moodMapping = moodToGenreMapping[mood] || moodToGenreMapping.default;
+  const energyGenres = moodMapping.energy[energy] || moodMapping.primary;
+  const primaryGenres = moodMapping.primary;
+  const secondaryGenres = moodMapping.secondary;
+  
+  const genresToSearch = [
+    ...energyGenres,
+    ...primaryGenres,
+    ...secondaryGenres
+  ].filter((genre, index, self) => self.indexOf(genre) === index);
+  
+  console.log(`🎵 Targeting genres: ${genresToSearch.slice(0, 5).join(', ')}...`);
+  
+  const allTracks = [];
+  const seenTrackIds = new Set();
+  
+  for (let i = 0; i < Math.min(genresToSearch.length, 6); i++) {
+    const searchGenre = genresToSearch[i];
     
-    // If we have BPM data, use it for filtering (more lenient)
-    if (track.bpmData) {
-      const bpmData = track.bpmData;
+    try {
+      console.log(`🔍 Searching genre: "${searchGenre}"`);
       
-      // 1. Check BPM range relevance (more lenient ranges)
-      const targetRange = energyBPMRanges[beat.energy];
-      if (bpmData.bpm && bpmData.bpm >= (targetRange.min - 20) && bpmData.bpm <= (targetRange.max + 20)) {
-        isRelevant = true;
+      const genreQueries = [
+        `genre:"${searchGenre}"`,
+        searchGenre,
+        `${searchGenre} instrumental`,
+        `${searchGenre} soundtrack`
+      ];
+      
+      for (const query of genreQueries.slice(0, 3)) {
+        try {
+          const result = await spotifyApi.searchTracks(query, { 
+            limit: 20,
+            market: 'US'
+          });
+          
+          const tracks = result.body.tracks.items;
+          
+          const validTracks = tracks.filter(track => {
+            return track && 
+              track.id && 
+              track.name && 
+              track.artists?.length > 0 &&
+              track.external_urls &&
+              !usedTrackIds.has(track.id) &&
+              !seenTrackIds.has(track.id);
+          });
+          
+          validTracks.forEach(track => seenTrackIds.add(track.id));
+          allTracks.push(...validTracks);
+          
+          console.log(`    Added ${validTracks.length} tracks from "${query}"`);
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (queryError) {
+          console.error(`❌ Error with query "${query}":`, queryError.message);
+          continue;
+        }
       }
       
-      // 2. Any energy level match is acceptable
-      if (bpmData.energy !== null && bpmData.energy >= 0 && bpmData.energy <= 1) {
-        isRelevant = true;
-      }
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // 3. Any key is acceptable
-      if (bpmData.key) {
-        isRelevant = true;
-      }
-      
-      // 4. Any reasonable danceability
-      if (bpmData.danceability !== null && bpmData.danceability >= 0 && bpmData.danceability <= 1) {
-        isRelevant = true;
-      }
-    }
-    
-    // Always include tracks with strong text matches or no BPM data
-    if (!isRelevant) {
-      const trackName = track.name.toLowerCase();
-      const albumName = track.album.name.toLowerCase();
-      const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
-      const allText = `${trackName} ${albumName} ${artistNames}`;
-      
-      const moodSynonyms = moodExpansion[beat.mood] || [];
-      const genreVariations = genreExpansion[beat.genre] || [];
-      
-      const hasTextMatch = [beat.mood, beat.genre, ...moodSynonyms, ...genreVariations]
-        .some(term => allText.includes(term));
-      
-      if (hasTextMatch || !track.bpmData) {
-        isRelevant = true;
-      }
-    }
-    
-    if (isRelevant) {
-      relevantTracks.push(track);
+    } catch (error) {
+      console.error(`❌ Error searching genre "${searchGenre}":`, error.message);
+      continue;
     }
   }
   
-  console.log(`🎯 Filtered ${enrichedTracks.length} tracks to ${relevantTracks.length} relevant tracks`);
-  return relevantTracks;
+  console.log(`🎵 Total genre-matched tracks: ${allTracks.length}`);
+  return allTracks;
+}
+
+// ENHANCED: Genre-aware scoring
+function calculateGenreAwareScore(track, { mood, energy, genre }) {
+  const trackName = track.name.toLowerCase();
+  const albumName = track.album.name.toLowerCase();
+  const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
+  const allText = `${trackName} ${albumName} ${artistNames}`;
+  
+  let score = 0;
+  
+  // Base popularity
+  score += Math.min(track.popularity * 0.1, 10);
+  
+  // Genre-based scoring (highest priority)
+  const moodMapping = moodToGenreMapping[mood] || moodToGenreMapping.default;
+  const energyGenres = moodMapping.energy[energy] || [];
+  const primaryGenres = moodMapping.primary || [];
+  const secondaryGenres = moodMapping.secondary || [];
+  
+  // Perfect genre match (energy-specific)
+  energyGenres.forEach(mappedGenre => {
+    if (allText.includes(mappedGenre.toLowerCase().replace(/\s+/g, ' '))) {
+      score += 150;
+    }
+  });
+  
+  // Primary genre match
+  primaryGenres.forEach(mappedGenre => {
+    if (allText.includes(mappedGenre.toLowerCase().replace(/\s+/g, ' '))) {
+      score += 100;
+    }
+  });
+  
+  // Secondary genre match
+  secondaryGenres.forEach(mappedGenre => {
+    if (allText.includes(mappedGenre.toLowerCase().replace(/\s+/g, ' '))) {
+      score += 70;
+    }
+  });
+  
+  // Direct mood match
+  if (allText.includes(mood)) score += 80;
+  
+  // Original genre match
+  if (allText.includes(genre)) score += 60;
+  
+  // BPM-based scoring
+  if (track.bpmData && track.bpmData.bpm) {
+    const targetRange = energyBPMRanges[energy];
+    const bpm = track.bpmData.bpm;
+    
+    if (bpm >= targetRange.ideal[0] && bpm <= targetRange.ideal[1]) {
+      score += 50;
+    } else if (bpm >= targetRange.min && bpm <= targetRange.max) {
+      score += 30;
+    }
+  }
+  
+  // Key matching
+  if (track.bpmData && track.bpmData.key && keyEmotionMap[track.bpmData.key]) {
+    const keyInfo = keyEmotionMap[track.bpmData.key];
+    if (keyInfo.mood.includes(mood)) score += 40;
+    if (keyInfo.energy === energy) score += 30;
+  }
+  
+  // Energy keywords
+  const energyKeywords = {
+    low: ['ambient', 'calm', 'peaceful', 'quiet', 'soft', 'gentle', 'slow'],
+    medium: ['moderate', 'balanced', 'steady'],
+    high: ['energetic', 'powerful', 'driving', 'intense', 'fast', 'aggressive', 'hard']
+  };
+  
+  if (energyKeywords[energy]) {
+    energyKeywords[energy].forEach(keyword => {
+      if (allText.includes(keyword)) score += 25;
+    });
+  }
+  
+  // Cinematic bonuses
+  if (allText.includes('instrumental')) score += 35;
+  if (allText.includes('soundtrack')) score += 30;
+  if (allText.includes('score')) score += 25;
+  
+  // Duration preference
+  const minutes = track.duration_ms / 60000;
+  if (minutes >= 2 && minutes <= 8) score += 20;
+  
+  // Recency bonus
+  if (track.album.release_date) {
+    const year = new Date(track.album.release_date).getFullYear();
+    if (year >= 2010) score += 15;
+  }
+  
+  // Penalize explicit content
+  if (track.explicit) score -= 20;
+  
+  return score;
 }
 
 async function getSpotifyAccessToken() {
@@ -359,7 +577,6 @@ Focus on the emotional journey and pick the most fitting mood/genre combinations
       temperature: 0.7,
     });
     
-    console.log("🧠 GPT response:", response.choices?.[0]?.message?.content);
     return parseGPTResponse(response.choices[0].message.content);
   } catch (error) {
     console.error("❌ OpenAI API error:", error);
@@ -401,144 +618,25 @@ function parseGPTResponse(content) {
     beats.push({ mood, energy, genre });
   }
 
-  console.log("🎬 Parsed story beats:", beats);
   return beats.length > 0 ? beats : [{ mood: "dark", energy: "medium", genre: "cinematic" }];
 }
 
-// OPTIMIZED: Faster Spotify search with fewer queries
-async function multiQuerySearch({ mood, energy, genre }, usedTrackIds = new Set()) {
-  console.log(`🔍 Multi-query search for: ${mood} ${energy} ${genre}`);
-  
-  const moodSynonyms = moodExpansion[mood] || [mood];
-  const genreVariations = genreExpansion[genre] || [genre];
-  
-  // Reduced query set for faster processing
-  let queries = [
-    mood,
-    genre,
-    `${mood} ${genre}`,
-    `${genre} instrumental`,
-    `${mood} music`,
-    moodSynonyms[0],
-    genreVariations[0],
-    'cinematic',
-    'soundtrack'
-  ];
-  
-  queries = queries.slice(0, 8); // Limit to 8 queries max
-
-  const allTracks = [];
-  const seenTrackIds = new Set();
-  
-  for (let i = 0; i < queries.length; i++) {
-    const query = queries[i];
-    
-    try {
-      console.log(`Query ${i + 1}: "${query}"`);
-      
-      const result = await spotifyApi.searchTracks(query, { 
-        limit: 15, // Reduced from 20
-        market: 'US'
-      });
-      
-      const tracks = result.body.tracks.items;
-      
-      const validTracks = tracks.filter(track => {
-        return track && 
-          track.id && 
-          track.name && 
-          track.artists?.length > 0 &&
-          track.external_urls &&
-          !usedTrackIds.has(track.id) &&
-          !seenTrackIds.has(track.id);
-      });
-      
-      validTracks.forEach(track => seenTrackIds.add(track.id));
-      allTracks.push(...validTracks);
-      
-      console.log(`  Added ${validTracks.length} valid tracks`);
-      
-      // Minimal delay
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-    } catch (error) {
-      console.error(`❌ Error with query "${query}":`, error);
-      continue;
-    }
-  }
-
-  console.log(`🎵 Total unique tracks found: ${allTracks.length}`);
-  return allTracks;
-}
-
-function calculateEnhancedScore(track, { mood, energy, genre }) {
-  const trackName = track.name.toLowerCase();
-  const albumName = track.album.name.toLowerCase();
-  const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
-  const allText = `${trackName} ${albumName} ${artistNames}`;
-  
-  let score = 0;
-  
-  // Base popularity
-  score += Math.min(track.popularity * 0.2, 20);
-  
-  // Text-based matching
-  if (allText.includes(mood)) score += 100;
-  if (allText.includes(genre)) score += 80;
-  
-  const moodSynonyms = moodExpansion[mood] || [];
-  moodSynonyms.forEach(synonym => {
-    if (allText.includes(synonym)) score += 50;
-  });
-  
-  const genreVariations = genreExpansion[genre] || [];
-  genreVariations.forEach(variation => {
-    if (allText.includes(variation)) score += 40;
-  });
-  
-  // BPM-based scoring (if available)
-  if (track.bpmData && track.bpmData.bpm) {
-    const targetRange = energyBPMRanges[energy];
-    const bpm = track.bpmData.bpm;
-    
-    if (bpm >= targetRange.ideal[0] && bpm <= targetRange.ideal[1]) {
-      score += 60;
-    } else if (bpm >= targetRange.min && bpm <= targetRange.max) {
-      score += 35;
-    }
-  }
-  
-  // Key matching
-  if (track.bpmData && track.bpmData.key && keyEmotionMap[track.bpmData.key]) {
-    const keyInfo = keyEmotionMap[track.bpmData.key];
-    if (keyInfo.mood.includes(mood)) score += 40;
-    if (keyInfo.energy === energy) score += 30;
-  }
-  
-  // Instrumental bonus
-  if (allText.includes('instrumental')) score += 40;
-  if (allText.includes('cinematic')) score += 35;
-  if (allText.includes('soundtrack')) score += 30;
-  
-  return score;
-}
-
-// OPTIMIZED: Streamlined playlist generation
-async function generatePlaylistWithBPMFiltering(title, storyBeats) {
+// MAIN: Genre-focused playlist generation
+async function generateGenreFocusedPlaylist(title, storyBeats) {
   const allCandidateTracks = [];
   const usedTrackIds = new Set();
   
-  console.log("🎵 Step 1: Collecting candidate tracks from Spotify...");
+  console.log("🎯 Step 1: Genre-focused track collection...");
   
   for (let i = 0; i < storyBeats.length; i++) {
     const beat = storyBeats[i];
-    console.log(`🔍 Processing beat ${i + 1}: ${beat.mood} ${beat.energy} ${beat.genre}`);
+    console.log(`🔍 Processing beat ${i + 1}: ${beat.mood} (${beat.energy} energy)`);
     
     try {
-      const tracks = await multiQuerySearch(beat, usedTrackIds);
+      const tracks = await searchSpotifyByGenre(beat, usedTrackIds);
       
       if (tracks.length > 0) {
-        const selectedTracks = tracks.slice(0, 10); // Reduced from 15
+        const selectedTracks = tracks.slice(0, 15);
         allCandidateTracks.push(...selectedTracks.map(track => ({ 
           ...track, 
           beatIndex: i, 
@@ -546,36 +644,34 @@ async function generatePlaylistWithBPMFiltering(title, storyBeats) {
         })));
         
         selectedTracks.forEach(track => usedTrackIds.add(track.id));
-        console.log(`✅ Collected ${selectedTracks.length} candidate tracks for beat ${i + 1}`);
+        console.log(`✅ Collected ${selectedTracks.length} genre-matched tracks for beat ${i + 1}`);
+      } else {
+        console.log(`⚠️ No genre-matched tracks found for beat ${i + 1}`);
       }
       
-      await new Promise(resolve => setTimeout(resolve, 200)); // Reduced delay
+      await new Promise(resolve => setTimeout(resolve, 300));
     } catch (error) {
       console.error(`❌ Error processing beat ${i + 1}:`, error);
       continue;
     }
   }
 
-  console.log(`📊 Total candidate tracks collected: ${allCandidateTracks.length}`);
-
   if (allCandidateTracks.length === 0) {
-    throw new Error("No candidate tracks found from Spotify");
+    throw new Error("No genre-matched tracks found");
   }
 
-  console.log("🎼 Step 2: Enriching tracks with BPM data...");
+  console.log("🎼 Step 2: Enriching with BPM data...");
   const enrichedTracks = await enrichTracksWithBPMData(allCandidateTracks);
 
-  console.log("🎯 Step 3: Filtering tracks based on relevance...");
-  const relevantTracks = filterTracksForFilmRelevance(enrichedTracks);
-
-  console.log("🏆 Step 4: Scoring and selecting final tracks...");
-  const scoredTracks = relevantTracks.map(track => ({
+  console.log("🎯 Step 3: Genre-aware scoring...");
+  const scoredTracks = enrichedTracks.map(track => ({
     ...track,
-    relevanceScore: calculateEnhancedScore(track, track.beatInfo)
+    relevanceScore: calculateGenreAwareScore(track, track.beatInfo)
   }));
 
+  console.log("🏆 Step 4: Final selection...");
   const finalPlaylist = [];
-  const maxTracksPerBeat = 3;
+  const maxTracksPerBeat = 4;
   
   for (let i = 0; i < storyBeats.length; i++) {
     const beatTracks = scoredTracks
@@ -586,13 +682,19 @@ async function generatePlaylistWithBPMFiltering(title, storyBeats) {
     if (beatTracks.length > 0) {
       finalPlaylist.push(...beatTracks);
       console.log(`✅ Selected ${beatTracks.length} tracks for beat ${i + 1}`);
+      
+      const topTrack = beatTracks[0];
+      const moodMapping = moodToGenreMapping[topTrack.beatInfo.mood] || moodToGenreMapping.default;
+      const targetGenres = moodMapping.energy[topTrack.beatInfo.energy] || moodMapping.primary;
+      console.log(`  Target genres: ${targetGenres.slice(0, 3).join(', ')}`);
+      console.log(`  Top track: "${topTrack.name}" by ${topTrack.artists[0].name} (score: ${topTrack.relevanceScore})`);
     }
   }
 
   return finalPlaylist;
 }
 
-// Main handler with timeout optimization
+// Main handler
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -615,10 +717,8 @@ module.exports = async function handler(req, res) {
   const startTime = Date.now();
 
   try {
-    // Get Spotify access token
     await getSpotifyAccessToken();
     
-    // Quick connectivity test
     console.log("🧪 Testing Spotify connectivity...");
     const testResult = await spotifyApi.searchTracks('electronic', { limit: 1, market: 'US' });
     if (testResult.body.tracks.items.length === 0) {
@@ -626,22 +726,12 @@ module.exports = async function handler(req, res) {
     }
     console.log("✅ Spotify connectivity confirmed");
     
-    // Get story beats from GPT
     const storyBeats = await getStoryBeatsFromGPT(title.trim());
     console.log(`📖 Generated ${storyBeats.length} story beats`);
 
-    // Check elapsed time before starting intensive operations
-    const elapsedTime = Date.now() - startTime;
-    console.log(`⏱️ Elapsed time: ${elapsedTime}ms`);
-    
-    if (elapsedTime > 20000) { // If more than 20 seconds already
-      console.log("⚠️ Approaching timeout, using fast mode");
-    }
+    // Use genre-focused approach
+    const finalPlaylist = await generateGenreFocusedPlaylist(title, storyBeats);
 
-    // Generate playlist with optimizations
-    const finalPlaylist = await generatePlaylistWithBPMFiltering(title, storyBeats);
-
-    // Remove duplicates and prepare response
     const uniquePlaylist = finalPlaylist.filter((track, index, self) => 
       index === self.findIndex(t => t.id === track.id)
     );
@@ -657,41 +747,33 @@ module.exports = async function handler(req, res) {
       popularity: track.popularity,
       preview_url: track.preview_url || null,
       relevanceScore: track.relevanceScore,
-      // Include BPM data in response
-      bpm: track.bpmData?.bpm || null,
-      key: track.bpmData?.key || null,
-      energy: track.bpmData?.energy || null,
-      danceability: track.bpmData?.danceability || null,
-      happiness: track.bpmData?.happiness || null,
+      bmp: track.bmpData?.bpm || null,
+      key: track.bmpData?.key || null,
+      energy: track.bmpData?.energy || null,
+      danceability: track.bmpData?.danceability || null,
+      happiness: track.bmpData?.happiness || null,
       beatIndex: track.beatIndex,
       beatMood: track.beatInfo.mood,
       beatEnergy: track.beatInfo.energy,
       beatGenre: track.beatInfo.genre
     }));
 
-    // Calculate statistics
-    const tracksWithBPM = simplifiedPlaylist.filter(track => track.bpm !== null);
+    const tracksWithBPM = simplifiedPlaylist.filter(track => track.bmp !== null);
     const avgBPM = tracksWithBPM.length > 0 
-      ? Math.round(tracksWithBPM.reduce((sum, track) => sum + track.bpm, 0) / tracksWithBPM.length)
+      ? Math.round(tracksWithBPM.reduce((sum, track) => sum + track.bmp, 0) / tracksWithBPM.length)
       : null;
 
     const totalElapsedTime = Date.now() - startTime;
-    console.log(`✅ Final playlist: ${simplifiedPlaylist.length} unique tracks`);
+    console.log(`✅ Genre-focused playlist: ${simplifiedPlaylist.length} tracks`);
     console.log(`📊 BPM enrichment: ${tracksWithBPM.length}/${simplifiedPlaylist.length} tracks`);
-    console.log(`⏱️ Total processing time: ${totalElapsedTime}ms`);
-    
-    // Show sample tracks with BPM data
-    console.log("🔍 Sample tracks:");
-    simplifiedPlaylist.slice(0, 3).forEach((track, i) => {
-      const bpmInfo = track.bmp ? ` [BPM: ${track.bpm}]` : ' [No BPM]';
-      console.log(`  ${i + 1}. "${track.name}" by ${track.artists}${bpmInfo}`);
-    });
+    console.log(`⏱️ Total time: ${totalElapsedTime}ms`);
     
     res.status(200).json({ 
       playlist: simplifiedPlaylist,
       totalTracks: simplifiedPlaylist.length,
       storyBeats: storyBeats,
       processingTimeMs: totalElapsedTime,
+      approach: "genre-focused",
       stats: {
         tracksWithBPM: tracksWithBPM.length,
         bmpEnrichmentRate: Math.round(tracksWithBPM.length/simplifiedPlaylist.length*100),
@@ -707,7 +789,6 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     const totalElapsedTime = Date.now() - startTime;
     console.error("❌ Error generating playlist:", error);
-    console.log(`⏱️ Error occurred after: ${totalElapsedTime}ms`);
     
     res.status(500).json({ 
       error: "Failed to generate playlist",
