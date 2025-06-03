@@ -254,58 +254,125 @@ const genreExpansion = {
   progressive: ['prog', 'evolving', 'journey', 'buildup', 'cinematic']
 };
 
-// FIXED: Correct getSongBPM API integration
+// FIXED: Correct getSongBPM API integration with better error handling
 async function getSongBPMData(artist, title) {
   try {
-    const searchQuery = encodeURIComponent(`${title} ${artist}`);
+    // Clean up artist and title names
+    const cleanArtist = artist.replace(/[^\w\s-]/g, '').trim();
+    const cleanTitle = title.replace(/[^\w\s-]/g, '').replace(/\s*-\s*(remastered|version|remix|edit).*$/i, '').trim();
+    
+    const searchQuery = encodeURIComponent(`${cleanTitle} ${cleanArtist}`);
     const searchUrl = `${GETSONGBPM_SEARCH_URL}?api_key=${GETSONGBPM_API_KEY}&type=song&lookup=${searchQuery}`;
     
+    console.log(`🔍 BPM API search for: "${cleanArtist}" - "${cleanTitle}"`);
+    console.log(`🔗 Search URL: ${searchUrl}`);
+    
     const searchResponse = await axios.get(searchUrl, {
-      timeout: 3000,
+      timeout: 4000,
       headers: { 'User-Agent': 'Playlist-Generator/1.0' }
     });
     
-    if (!searchResponse.data || !searchResponse.data.search || searchResponse.data.search.length === 0) {
+    console.log(`📊 Search response:`, JSON.stringify(searchResponse.data, null, 2));
+    
+    // Handle different response structures
+    let searchResults = null;
+    
+    if (searchResponse.data) {
+      if (searchResponse.data.search) {
+        searchResults = searchResponse.data.search;
+      } else if (Array.isArray(searchResponse.data)) {
+        searchResults = searchResponse.data;
+      } else if (searchResponse.data.songs) {
+        searchResults = searchResponse.data.songs;
+      } else if (searchResponse.data.results) {
+        searchResults = searchResponse.data.results;
+      }
+    }
+    
+    // Check if searchResults is actually iterable
+    if (!searchResults || !Array.isArray(searchResults) || searchResults.length === 0) {
+      console.log(`⚠️ No search results or invalid structure for: ${cleanArtist} - ${cleanTitle}`);
+      console.log(`📋 Response structure:`, typeof searchResults, searchResults);
       return null;
     }
     
-    let songId = null;
-    const searchResults = searchResponse.data.search;
+    console.log(`🎵 Found ${searchResults.length} search results`);
     
+    let songId = null;
+    
+    // Try to find exact artist match first
     for (const result of searchResults) {
-      if (result.artist && result.artist.name && 
-          result.artist.name.toLowerCase().includes(artist.toLowerCase())) {
+      console.log(`🔍 Checking result:`, result);
+      
+      if (result.artist && result.artist.name) {
+        const resultArtist = result.artist.name.toLowerCase();
+        const searchArtist = cleanArtist.toLowerCase();
+        
+        if (resultArtist.includes(searchArtist) || searchArtist.includes(resultArtist)) {
+          songId = result.id;
+          console.log(`✅ Found artist match: ${result.artist.name} (ID: ${songId})`);
+          break;
+        }
+      } else if (result.id) {
+        // Fallback if no artist info but has ID
         songId = result.id;
+        console.log(`🔄 Using fallback result with ID: ${songId}`);
         break;
       }
     }
     
-    if (!songId && searchResults.length > 0) {
-      songId = searchResults[0].id;
+    // If no artist match, take the first result with an ID
+    if (!songId) {
+      for (const result of searchResults) {
+        if (result.id) {
+          songId = result.id;
+          console.log(`🔄 Using first available result with ID: ${songId}`);
+          break;
+        }
+      }
     }
     
-    if (!songId) return null;
+    if (!songId) {
+      console.log(`❌ No valid song ID found in results`);
+      return null;
+    }
     
+    // Step 2: Get detailed song info using the ID
     const songUrl = `${GETSONGBPM_SONG_URL}?api_key=${GETSONGBPM_API_KEY}&id=${songId}`;
+    console.log(`🎼 Fetching song details: ${songUrl}`);
+    
     const songResponse = await axios.get(songUrl, {
-      timeout: 3000,
+      timeout: 4000,
       headers: { 'User-Agent': 'Playlist-Generator/1.0' }
     });
     
+    console.log(`📊 Song response:`, JSON.stringify(songResponse.data, null, 2));
+    
     if (songResponse.data && songResponse.data.song) {
       const songData = songResponse.data.song;
-      return {
+      console.log(`✅ BPM data found: BPM=${songData.tempo}, Key=${songData.key_of}, Energy=${songData.energy}`);
+      
+      const enrichedData = {
         bpm: parseFloat(songData.tempo) || null,
         key: songData.key_of || null,
         energy: parseFloat(songData.energy) || null,
         danceability: parseFloat(songData.danceability) || null,
         happiness: parseFloat(songData.mood) || null
       };
+      
+      console.log(`🎼 Parsed BPM data:`, enrichedData);
+      return enrichedData;
     }
     
+    console.log(`⚠️ No song data in response for ID: ${songId}`);
     return null;
+    
   } catch (error) {
     console.error(`❌ Error fetching BPM data for ${artist} - ${title}:`, error.message);
+    if (error.response) {
+      console.error(`📋 Error response status:`, error.response.status);
+      console.error(`📋 Error response data:`, error.response.data);
+    }
     return null;
   }
 }
@@ -349,7 +416,7 @@ async function enrichTracksWithBPMData(tracks) {
     enrichedTracks.push(...remainingTracks);
   }
   
-  const tracksWithBPM = enrichedTracks.filter(track => track.bmpData);
+  const tracksWithBPM = enrichedTracks.filter(track => track.bpmData);
   console.log(`📊 Successfully enriched ${tracksWithBPM.length}/${enrichedTracks.length} tracks with BPM data`);
   
   return enrichedTracks;
@@ -747,20 +814,20 @@ module.exports = async function handler(req, res) {
       popularity: track.popularity,
       preview_url: track.preview_url || null,
       relevanceScore: track.relevanceScore,
-      bmp: track.bmpData?.bpm || null,
-      key: track.bmpData?.key || null,
-      energy: track.bmpData?.energy || null,
-      danceability: track.bmpData?.danceability || null,
-      happiness: track.bmpData?.happiness || null,
+      bpm: track.bpmData?.bpm || null,
+      key: track.bpmData?.key || null,
+      energy: track.bpmData?.energy || null,
+      danceability: track.bpmData?.danceability || null,
+      happiness: track.bpmData?.happiness || null,
       beatIndex: track.beatIndex,
       beatMood: track.beatInfo.mood,
       beatEnergy: track.beatInfo.energy,
       beatGenre: track.beatInfo.genre
     }));
 
-    const tracksWithBPM = simplifiedPlaylist.filter(track => track.bmp !== null);
+    const tracksWithBPM = simplifiedPlaylist.filter(track => track.bpm !== null);
     const avgBPM = tracksWithBPM.length > 0 
-      ? Math.round(tracksWithBPM.reduce((sum, track) => sum + track.bmp, 0) / tracksWithBPM.length)
+      ? Math.round(tracksWithBPM.reduce((sum, track) => sum + track.bpm, 0) / tracksWithBPM.length)
       : null;
 
     const totalElapsedTime = Date.now() - startTime;
