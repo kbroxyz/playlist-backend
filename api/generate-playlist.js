@@ -15,7 +15,7 @@ const spotifyApi = new SpotifyWebApi({
 
 // GetSongBPM API configuration
 const GETSONGBPM_API_KEY = "74f0fbb0fff7055b193d8fdf6b42605a";
-const GETSONGBPM_BASE_URL = "https://api.getsong.co";
+const GETSONGBPM_BASE_URL = "https://api.getsongbpm.com";
 
 // Enhanced BPM ranges for different energy levels
 const energyBPMRanges = {
@@ -588,7 +588,7 @@ async function generateBPMKeyFirstPlaylist(title, storyBeats) {
       
       const topTrack = beatTracks[0];
       console.log(`  Top track: "${topTrack.name}" by ${topTrack.artists[0].name}`);
-      console.log(`  BPM: ${topTrack.bmpData?.bpm}, Key: ${topTrack.bmpData?.key} (score: ${topTrack.relevanceScore})`);
+      console.log(`  BPM: ${topTrack.bpmData?.bpm}, Key: ${topTrack.bpmData?.key} (score: ${topTrack.relevanceScore})`);
     }
   }
 
