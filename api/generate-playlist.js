@@ -843,7 +843,7 @@ module.exports = async function handler(req, res) {
       approach: "genre-focused",
       stats: {
         tracksWithBPM: tracksWithBPM.length,
-        bmpEnrichmentRate: Math.round(tracksWithBPM.length/simplifiedPlaylist.length*100),
+        bpmEnrichmentRate: Math.round(tracksWithBPM.length/simplifiedPlaylist.length*100),
         averageBPM: avgBPM,
         energyDistribution: {
           low: simplifiedPlaylist.filter(t => t.beatEnergy === 'low').length,
